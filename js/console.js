@@ -1,0 +1,176 @@
+(function(){
+  const canvas = document.getElementById('canvas');
+  const engine = CollageEngine(canvas);
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let session = null;
+  let layers = []; // {id, name, storage_path, img, depth, scale, active, sort_order}
+  let settings = { depth_scale: 1, speed: 1, density: 1.2 };
+
+  function loadImg(src){
+    return new Promise(res=>{
+      const im = new Image(); im.crossOrigin = 'anonymous';
+      im.onload = ()=>res(im); im.onerror = ()=>res(im);
+      im.src = src;
+    });
+  }
+  function publicUrl(path){ return supabase.storage.from('layers').getPublicUrl(path).data.publicUrl; }
+
+  // ---- auth ----
+  const authBox = document.getElementById('authBox'), authError = document.getElementById('authError');
+  function updateAuthUI(){
+    authBox.style.display = session ? 'none' : 'flex';
+    document.getElementById('panel').style.display = session ? 'block' : 'none';
+    document.getElementById('toggle').style.display = session ? 'block' : 'none';
+  }
+  document.getElementById('signIn').onclick = async ()=>{
+    authError.textContent = '';
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error){ authError.textContent = error.message; return; }
+    session = data.session; updateAuthUI(); await loadAll();
+  };
+  document.getElementById('signOut').onclick = async ()=>{
+    await supabase.auth.signOut(); session = null; layers = []; engine.setLayers([]);
+    renderLayerList(); updateAuthUI();
+  };
+
+  // ---- load everything ----
+  async function loadAll(){
+    const { data: s } = await supabase.from('settings').select('*').eq('id',1).single();
+    if (s){ settings = s; syncSettingsUI(); engine.setSettings({ depthScale: s.depth_scale, speed: s.speed, density: s.density }); }
+
+    const { data: rows } = await supabase.from('layers').select('*').order('sort_order', { ascending: true });
+    layers = [];
+    for (const r of rows || []){
+      const img = await loadImg(publicUrl(r.storage_path));
+      layers.push({ ...r, img });
+    }
+    engine.setLayers(layers);
+    renderLayerList();
+  }
+
+  // ---- settings panel ----
+  const depthEl = document.getElementById('depthScale'), speedEl = document.getElementById('speed'), densEl = document.getElementById('density');
+  function syncSettingsUI(){
+    depthEl.value = settings.depth_scale; speedEl.value = settings.speed; densEl.value = settings.density;
+    document.getElementById('depthVal').textContent = (+settings.depth_scale).toFixed(2);
+    document.getElementById('speedVal').textContent = (+settings.speed).toFixed(2);
+    document.getElementById('densVal').textContent = (+settings.density).toFixed(2);
+  }
+  function liveSettings(){
+    settings.depth_scale = parseFloat(depthEl.value);
+    settings.speed = parseFloat(speedEl.value);
+    settings.density = parseFloat(densEl.value);
+    engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density });
+    syncSettingsUI();
+  }
+  async function saveSettings(){
+    await supabase.from('settings').update({
+      depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density
+    }).eq('id', 1);
+  }
+  [depthEl, speedEl, densEl].forEach(el=>{
+    el.addEventListener('input', liveSettings);
+    el.addEventListener('change', saveSettings);
+  });
+
+  // ---- upload ----
+  const drop = document.getElementById('drop'), fileInput = document.getElementById('fileInput');
+  drop.onclick = ()=>fileInput.click();
+  fileInput.onchange = e=>{ [...e.target.files].forEach(addFile); fileInput.value=''; };
+  ['dragover','dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{
+    e.preventDefault(); drop.classList.toggle('over', ev==='dragover');
+  }));
+  drop.addEventListener('drop', e=>{ [...e.dataTransfer.files].forEach(addFile); });
+
+  async function addFile(file){
+    if (!file.type.includes('png') || !session) return;
+    const path = `${crypto.randomUUID()}.png`;
+    const { error: upErr } = await supabase.storage.from('layers').upload(path, file, { contentType: 'image/png' });
+    if (upErr){ alert('Upload failed: ' + upErr.message); return; }
+    const rec = {
+      name: file.name, storage_path: path,
+      depth: +(0.15 + Math.random()*1.6).toFixed(2), scale: 1, active: true,
+      sort_order: layers.length
+    };
+    const { data, error } = await supabase.from('layers').insert(rec).select().single();
+    if (error){ alert('Save failed: ' + error.message); return; }
+    const img = await loadImg(publicUrl(data.storage_path));
+    layers.push({ ...data, img });
+    engine.setLayers(layers);
+    renderLayerList();
+  }
+
+  // ---- layer list: active/scale/reorder/delete ----
+  let dragSrc = null;
+  async function persistOrder(){
+    layers.forEach((l, idx)=>{ l.sort_order = idx; });
+    engine.setLayers(layers);
+    for (const l of layers){
+      await supabase.from('layers').update({ sort_order: l.sort_order }).eq('id', l.id);
+    }
+  }
+
+  function renderLayerList(){
+    const el = document.getElementById('layers');
+    if (!layers.length){ el.innerHTML = '<div id="empty">Nothing yet — add PNGs above.</div>'; return; }
+    el.innerHTML = '';
+    layers.forEach(l=>{
+      const row = document.createElement('div'); row.className = 'layer';
+      row.innerHTML = `<span class="grip" draggable="true">⠿</span>`+
+        `<input type="checkbox" ${l.active ? 'checked' : ''}>`+
+        `<img src="${publicUrl(l.storage_path)}" alt="">`+
+        `<div class="meta"><div class="name">${l.name}</div><input type="range" min="0.2" max="3" step="0.05" value="${l.scale}"></div>`+
+        `<button aria-label="Remove">×</button>`;
+
+      const chk = row.querySelector('input[type=checkbox]');
+      chk.onchange = async ()=>{
+        l.active = chk.checked; engine.setLayers(layers);
+        await supabase.from('layers').update({ active: l.active }).eq('id', l.id);
+      };
+      const range = row.querySelector('input[type=range]');
+      range.addEventListener('input', ()=>{ l.scale = parseFloat(range.value); engine.setLayers(layers); });
+      range.addEventListener('change', async ()=>{
+        await supabase.from('layers').update({ scale: l.scale }).eq('id', l.id);
+      });
+      row.querySelector('button').onclick = async ()=>{
+        await supabase.storage.from('layers').remove([l.storage_path]);
+        await supabase.from('layers').delete().eq('id', l.id);
+        layers = layers.filter(x=>x!==l); engine.setLayers(layers);
+        await persistOrder(); renderLayerList();
+      };
+
+      const grip = row.querySelector('.grip');
+      grip.addEventListener('dragstart', e=>{ dragSrc = l; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+      grip.addEventListener('dragend', ()=>{ row.classList.remove('dragging'); document.querySelectorAll('.layer.drag-over').forEach(r=>r.classList.remove('drag-over')); });
+      row.addEventListener('dragover', e=>{ if (!dragSrc || dragSrc===l) return; e.preventDefault(); row.classList.add('drag-over'); });
+      row.addEventListener('dragleave', ()=>row.classList.remove('drag-over'));
+      row.addEventListener('drop', async e=>{
+        e.preventDefault(); row.classList.remove('drag-over');
+        if (!dragSrc || dragSrc===l) return;
+        const from = layers.indexOf(dragSrc), to = layers.indexOf(l);
+        layers.splice(from,1); layers.splice(to,0,dragSrc);
+        dragSrc = null; await persistOrder(); renderLayerList();
+      });
+      el.appendChild(row);
+    });
+  }
+
+  document.getElementById('clearAll').onclick = async ()=>{
+    if (!confirm('Remove all layers?')) return;
+    for (const l of layers){ await supabase.storage.from('layers').remove([l.storage_path]); await supabase.from('layers').delete().eq('id', l.id); }
+    layers = []; engine.setLayers(layers); renderLayerList();
+  };
+
+  document.getElementById('toggle').onclick = ()=>document.getElementById('panel').classList.toggle('hidden');
+
+  // ---- boot ----
+  (async ()=>{
+    const { data } = await supabase.auth.getSession();
+    session = data.session; updateAuthUI();
+    if (session) await loadAll();
+    engine.start();
+  })();
+})();
