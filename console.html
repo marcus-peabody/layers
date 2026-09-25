@@ -7,8 +7,6 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="mobileBlock">This console is desktop only.<br>Open it on a larger screen to upload and adjust the piece.</div>
-
 <canvas id="canvas"></canvas>
 
 <div id="authBox">
@@ -22,13 +20,15 @@
 <button id="toggle">Controls</button>
 <div id="panel">
   <h2>Add images</h2>
-  <div id="drop">Drop transparent PNGs here, or click to choose</div>
-  <input type="file" id="fileInput" accept="image/png" multiple>
+  <div id="drop">Drop images here, or click to choose<br><span style="font-size:11px;">(PNG cutouts work best; other formats get converted)</span></div>
+  <input type="file" id="fileInput" accept="image/*" multiple>
+  <div id="pasteZone" contenteditable="true">Tap here, then paste — for an iPhone sticker: cut out a subject in Photos, Copy it, then paste here</div>
 
   <h2>Scene</h2>
   <div class="row"><label><span>Apparent depth</span><span id="depthVal"></span></label><input type="range" id="depthScale" min="0.1" max="2.5" step="0.05" value="1"></div>
   <div class="row"><label><span>Scroll speed</span><span id="speedVal"></span></label><input type="range" id="speed" min="0.2" max="3" step="0.1" value="1"></div>
   <div class="row"><label><span>Density</span><span id="densVal"></span></label><input type="range" id="density" min="0.5" max="3" step="0.1" value="1.2"></div>
+  <div class="row"><label><span>Tilt sensitivity</span><span id="tiltVal"></span></label><input type="range" id="tiltSensitivity" min="0.5" max="5" step="0.1" value="1"></div>
 
   <h2>Layers <span style="font-weight:400;color:var(--muted);">— drag to reorder; lower items draw on top</span></h2>
   <div id="layers"><div id="empty">Nothing yet — add PNGs above.</div></div>
