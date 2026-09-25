@@ -31,7 +31,7 @@
 
   async function loadImg(src){
     return new Promise((res, rej)=>{
-      const im = new Image(); im.crossOrigin = 'anonymous';
+      const im = new Image();
       im.onload = ()=>res(im);
       im.onerror = ()=>rej(new Error('image failed to load: ' + src));
       im.src = src;
