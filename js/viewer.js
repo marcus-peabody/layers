@@ -2,11 +2,19 @@
   const canvas = document.getElementById('canvas');
   const hint = document.getElementById('hint');
   const status = document.getElementById('status');
-  const engine = CollageEngine(canvas);
-  engine.onFirstInteract(()=>hint.classList.add('gone'));
 
   function showStatus(msg){
     status.textContent = msg; status.style.display = 'block';
+  }
+  showStatus('Loading…');
+
+  let engine;
+  try {
+    engine = CollageEngine(canvas);
+    engine.onFirstInteract(()=>hint.classList.add('gone'));
+  } catch (e) {
+    showStatus('Engine setup failed: ' + (e && e.message ? e.message : e));
+    return;
   }
 
   let supabase;
