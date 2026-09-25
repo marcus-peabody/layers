@@ -31,29 +31,47 @@
   }
 
   async function load(){
-    const { data: s, error: sErr } = await supabase.from('settings').select('*').eq('id',1).single();
-    if (sErr) { showStatus('Could not load settings: ' + sErr.message); return; }
-    engine.setSettings({ depthScale: s.depth_scale, speed: s.speed, density: s.density });
+    try {
+      const { data: s, error: sErr } = await supabase.from('settings').select('*').eq('id',1).single();
+      if (sErr) { showStatus('Could not load settings: ' + sErr.message); return; }
+      engine.setSettings({ depthScale: s.depth_scale, speed: s.speed, density: s.density, tiltSensitivity: s.tilt_sensitivity });
 
-    const { data: rows, error: lErr } = await supabase.from('layers').select('*')
-      .eq('active', true).order('sort_order', { ascending: true });
-    if (lErr) { showStatus('Could not load layers: ' + lErr.message); return; }
-    if (!rows || !rows.length) { showStatus('No active layers found yet — add some from the console.'); return; }
+      const { data: rows, error: lErr } = await supabase.from('layers').select('*')
+        .eq('active', true).order('sort_order', { ascending: true });
+      if (lErr) { showStatus('Could not load layers: ' + lErr.message); return; }
+      if (!rows || !rows.length) { showStatus('No active layers found yet — add some from the console.'); return; }
 
-    const layers = [];
-    for (const r of rows){
-      const { data: pub } = supabase.storage.from('layers').getPublicUrl(r.storage_path);
-      try {
-        const img = await loadImg(pub.publicUrl);
-        layers.push({ id: r.id, img, depth: r.depth, scale: r.scale, active: true });
-      } catch (e) {
-        showStatus('Image failed to load — check the "layers" storage bucket is set to Public.\n' + e.message);
+      const layers = [];
+      for (const r of rows){
+        const { data: pub } = supabase.storage.from('layers').getPublicUrl(r.storage_path);
+        try {
+          const img = await loadImg(pub.publicUrl);
+          layers.push({ id: r.id, img, depth: r.depth, scale: r.scale, active: true });
+        } catch (e) {
+          showStatus('Image failed to load — check the "layers" storage bucket is set to Public.\n' + e.message);
+        }
       }
+      if (layers.length) status.style.display = 'none';
+      engine.setLayers(layers);
+    } catch (e) {
+      showStatus('Unexpected error: ' + (e && e.message ? e.message : e));
     }
-    if (layers.length) status.style.display = 'none';
-    engine.setLayers(layers);
   }
 
   await load();
   engine.start();
+
+  const tiltBtn = document.getElementById('tiltBtn');
+  if ('ontouchstart' in window && engine.tiltSupported){
+    tiltBtn.style.display = 'block';
+    tiltBtn.onclick = async ()=>{
+      if (engine.isTiltEnabled()){
+        engine.disableTilt(); tiltBtn.textContent = 'Enable tilt'; tiltBtn.classList.remove('on');
+      } else {
+        const ok = await engine.enableTilt();
+        if (ok){ tiltBtn.textContent = 'Tilt on'; tiltBtn.classList.add('on'); }
+        else { showStatus('Tilt permission was denied — check Settings > Safari > Motion & Orientation Access.'); }
+      }
+    };
+  }
 })();
