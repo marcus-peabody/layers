@@ -32,7 +32,10 @@
   async function loadImg(src){
     return new Promise((res, rej)=>{
       const im = new Image();
-      im.onload = ()=>res(im);
+      im.onload = ()=>{
+        if (!im.naturalWidth) rej(new Error('loaded but has zero size — likely a content blocker on this network/device is substituting a blank image for: ' + src));
+        else res(im);
+      };
       im.onerror = ()=>rej(new Error('image failed to load: ' + src));
       im.src = src;
     });
@@ -50,16 +53,19 @@
       if (!rows || !rows.length) { showStatus('No active layers found yet — add some from the console.'); return; }
 
       const layers = [];
+      let failCount = 0, lastErr = '';
       for (const r of rows){
         const { data: pub } = supabase.storage.from('layers').getPublicUrl(r.storage_path);
         try {
           const img = await loadImg(pub.publicUrl);
           layers.push({ id: r.id, img, depth: r.depth, scale: r.scale, active: true });
         } catch (e) {
-          showStatus('Image failed to load — check the "layers" storage bucket is set to Public.\n' + e.message);
+          failCount++; lastErr = e.message;
         }
       }
-      if (layers.length) status.style.display = 'none';
+      if (failCount && !layers.length) showStatus(`All ${failCount} image(s) failed to load.\n${lastErr}`);
+      else if (failCount) showStatus(`${failCount} of ${rows.length} image(s) failed to load.\n${lastErr}`);
+      else status.style.display = 'none';
       engine.setLayers(layers);
     } catch (e) {
       showStatus('Unexpected error: ' + (e && e.message ? e.message : e));
