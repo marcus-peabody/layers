@@ -9,14 +9,6 @@
 <body>
 <canvas id="canvas"></canvas>
 
-<div id="authBox">
-  <h1>Sign in (v2)</h1>
-  <input id="email" type="email" placeholder="Email" autocomplete="username">
-  <input id="password" type="password" placeholder="Password" autocomplete="current-password">
-  <button id="signIn">Sign in</button>
-  <div id="authError"></div>
-</div>
-
 <button id="toggle">Controls</button>
 <div id="panel">
   <h2>Add images</h2>
@@ -33,10 +25,9 @@
   <h2>Layers <span style="font-weight:400;color:var(--muted);">— drag to reorder; lower items draw on top</span></h2>
   <div id="layers"><div id="empty">Nothing yet — add PNGs above.</div></div>
   <button id="clearAll">Clear all layers</button>
-  <button id="signOut">Sign out</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase.umd.js"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/collage.js"></script>
 <script src="js/console.js"></script>
