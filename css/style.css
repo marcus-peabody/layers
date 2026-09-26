@@ -16,6 +16,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 #status{position:fixed;left:16px;right:16px;top:calc(16px + env(safe-area-inset-top,0px));
   color:#e28a7a;font-size:12px;font-family:ui-monospace,monospace;z-index:5;
   background:rgba(0,0,0,.5);padding:8px 10px;border-radius:6px;display:none;white-space:pre-wrap;}
+#tiltBtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:6;
+  background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;
+  padding:8px 12px;font-size:12px;cursor:pointer;}
+#tiltBtn.on{border-color:var(--accent);color:var(--accent);}
 
 /* --- console shared --- */
 #toggle{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:14px;z-index:20;
@@ -33,6 +37,9 @@ h2:first-of-type{margin-top:0;}
 input[type=range]{width:100%;accent-color:var(--accent);}
 #drop{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;}
 #drop.over{border-color:var(--accent);color:var(--accent);}
+#pasteZone{border:1px dashed var(--line);border-radius:10px;padding:12px;text-align:center;color:var(--muted);
+  font-size:12px;margin-top:8px;outline:none;}
+#pasteZone:focus{border-color:var(--accent);color:var(--accent);}
 input[type=file]{display:none;}
 .layer{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);border-top:2px solid transparent;}
 .layer.drag-over{border-top-color:var(--accent);}
@@ -59,10 +66,9 @@ input[type=file]{display:none;}
   color:#1a1206;font-weight:600;cursor:pointer;}
 #authError{color:#e28a7a;font-size:12px;min-height:14px;}
 
-/* --- desktop-only gate for console --- */
-#mobileBlock{display:none;position:fixed;inset:0;align-items:center;justify-content:center;text-align:center;
-  padding:40px;color:var(--muted);background:var(--bg);z-index:40;font-size:14px;}
+/* --- mobile console: hide live preview, panel fills the screen --- */
 @media (max-width:899px){
-  #mobileBlock{display:flex;}
-  #canvas,#panel,#toggle,#authBox{display:none !important;}
+  #canvas,#toggle{display:none !important;}
+  #panel{position:fixed;inset:0;width:100%;max-width:100%;border-left:none;transform:none;}
+  #panel.hidden{transform:none;}
 }
