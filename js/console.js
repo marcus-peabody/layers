@@ -1,17 +1,33 @@
 (function(){
   const canvas = document.getElementById('canvas');
-  const engine = CollageEngine(canvas);
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const authError = document.getElementById('authError');
+  function fatal(msg){ authError.textContent = msg; console.error(msg); }
+
+  let engine, supabase;
+  try {
+    engine = CollageEngine(canvas);
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    fatal('Setup failed: ' + (e && e.message ? e.message : e));
+    return;
+  }
 
   let session = null;
   let layers = []; // {id, name, storage_path, img, depth, scale, active, sort_order}
   let settings = { depth_scale: 1, speed: 1, density: 1.2 };
 
   function loadImg(src){
-    return new Promise(res=>{
-      const im = new Image(); im.crossOrigin = 'anonymous';
-      im.onload = ()=>res(im); im.onerror = ()=>res(im);
-      im.src = src;
+    return fetch(src).then(resp=>{
+      if (!resp.ok) throw new Error('HTTP ' + resp.status + ' fetching ' + src);
+      return resp.blob();
+    }).then(blob=>{
+      const objectUrl = URL.createObjectURL(blob);
+      return new Promise((res, rej)=>{
+        const im = new Image();
+        im.onload = ()=>{ if (!im.naturalWidth) rej(new Error('decoded but zero size: ' + src)); else res(im); };
+        im.onerror = ()=>rej(new Error('failed to decode: ' + src));
+        im.src = objectUrl;
+      });
     });
   }
   function publicUrl(path){ return supabase.storage.from('layers').getPublicUrl(path).data.publicUrl; }
@@ -39,39 +55,48 @@
   // ---- load everything ----
   async function loadAll(){
     const { data: s } = await supabase.from('settings').select('*').eq('id',1).single();
-    if (s){ settings = s; syncSettingsUI(); engine.setSettings({ depthScale: s.depth_scale, speed: s.speed, density: s.density }); }
+    if (s){ settings = s; syncSettingsUI(); engine.setSettings({ depthScale: s.depth_scale, speed: s.speed, density: s.density, tiltSensitivity: s.tilt_sensitivity }); }
 
     const { data: rows } = await supabase.from('layers').select('*').order('sort_order', { ascending: true });
     layers = [];
     for (const r of rows || []){
-      const img = await loadImg(publicUrl(r.storage_path));
-      layers.push({ ...r, img });
+      try {
+        const img = await loadImg(publicUrl(r.storage_path));
+        layers.push({ ...r, img });
+      } catch (e) {
+        console.error('layer image failed to load', r.name, e);
+        layers.push({ ...r, img: new Image() });
+      }
     }
     engine.setLayers(layers);
     renderLayerList();
   }
 
   // ---- settings panel ----
-  const depthEl = document.getElementById('depthScale'), speedEl = document.getElementById('speed'), densEl = document.getElementById('density');
+  const depthEl = document.getElementById('depthScale'), speedEl = document.getElementById('speed'),
+        densEl = document.getElementById('density'), tiltEl = document.getElementById('tiltSensitivity');
   function syncSettingsUI(){
     depthEl.value = settings.depth_scale; speedEl.value = settings.speed; densEl.value = settings.density;
+    tiltEl.value = settings.tilt_sensitivity ?? 1;
     document.getElementById('depthVal').textContent = (+settings.depth_scale).toFixed(2);
     document.getElementById('speedVal').textContent = (+settings.speed).toFixed(2);
     document.getElementById('densVal').textContent = (+settings.density).toFixed(2);
+    document.getElementById('tiltVal').textContent = (+(settings.tilt_sensitivity ?? 1)).toFixed(2);
   }
   function liveSettings(){
     settings.depth_scale = parseFloat(depthEl.value);
     settings.speed = parseFloat(speedEl.value);
     settings.density = parseFloat(densEl.value);
-    engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density });
+    settings.tilt_sensitivity = parseFloat(tiltEl.value);
+    engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity });
     syncSettingsUI();
   }
   async function saveSettings(){
     await supabase.from('settings').update({
-      depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density
+      depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density, tilt_sensitivity: settings.tilt_sensitivity
     }).eq('id', 1);
   }
-  [depthEl, speedEl, densEl].forEach(el=>{
+  [depthEl, speedEl, densEl, tiltEl].forEach(el=>{
     el.addEventListener('input', liveSettings);
     el.addEventListener('change', saveSettings);
   });
@@ -79,19 +104,56 @@
   // ---- upload ----
   const drop = document.getElementById('drop'), fileInput = document.getElementById('fileInput');
   drop.onclick = ()=>fileInput.click();
-  fileInput.onchange = e=>{ [...e.target.files].forEach(addFile); fileInput.value=''; };
+  fileInput.onchange = e=>{ [...e.target.files].forEach(f=>addFile(f)); fileInput.value=''; };
   ['dragover','dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{
     e.preventDefault(); drop.classList.toggle('over', ev==='dragover');
   }));
-  drop.addEventListener('drop', e=>{ [...e.dataTransfer.files].forEach(addFile); });
+  drop.addEventListener('drop', e=>{ [...e.dataTransfer.files].forEach(f=>addFile(f)); });
 
-  async function addFile(file){
-    if (!file.type.includes('png') || !session) return;
+  const pasteZone = document.getElementById('pasteZone');
+  const pasteZoneDefault = pasteZone.textContent;
+  pasteZone.addEventListener('paste', e=>{
+    e.preventDefault();
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    let found = false;
+    for (const item of items){
+      if (item.type && item.type.startsWith('image/')){
+        const blob = item.getAsFile();
+        if (blob){ addFile(blob, 'pasted-sticker.png'); found = true; }
+      }
+    }
+    pasteZone.textContent = found ? 'Added — paste another' : 'No image found in clipboard';
+    setTimeout(()=>{ pasteZone.textContent = pasteZoneDefault; }, 2000);
+  });
+
+  async function toPngBlob(file){
+    if (file.type === 'image/png') return file;
+    let img;
+    try {
+      img = await createImageBitmap(file);
+    } catch (e) {
+      img = await new Promise((res, rej)=>{
+        const im = new Image();
+        im.onload = ()=>res(im); im.onerror = rej;
+        im.src = URL.createObjectURL(file);
+      });
+    }
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    c.getContext('2d').drawImage(img, 0, 0);
+    return await new Promise(res=>c.toBlob(res, 'image/png'));
+  }
+
+  async function addFile(file, displayName){
+    if (!file.type || !file.type.startsWith('image/') || !session) return;
+    let pngBlob;
+    try { pngBlob = await toPngBlob(file); }
+    catch (e) { alert('Could not read that image: ' + e.message); return; }
     const path = `${crypto.randomUUID()}.png`;
-    const { error: upErr } = await supabase.storage.from('layers').upload(path, file, { contentType: 'image/png' });
+    const { error: upErr } = await supabase.storage.from('layers').upload(path, pngBlob, { contentType: 'image/png' });
     if (upErr){ alert('Upload failed: ' + upErr.message); return; }
     const rec = {
-      name: file.name, storage_path: path,
+      name: displayName || file.name || 'pasted-image.png', storage_path: path,
       depth: +(0.15 + Math.random()*1.6).toFixed(2), scale: 1, active: true,
       sort_order: layers.length
     };
@@ -168,9 +230,13 @@
 
   // ---- boot ----
   (async ()=>{
-    const { data } = await supabase.auth.getSession();
-    session = data.session; updateAuthUI();
-    if (session) await loadAll();
-    engine.start();
+    try {
+      const { data } = await supabase.auth.getSession();
+      session = data.session; updateAuthUI();
+      if (session) await loadAll();
+      engine.start();
+    } catch (e) {
+      fatal('Startup failed: ' + (e && e.message ? e.message : e));
+    }
   })();
 })();
