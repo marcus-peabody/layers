@@ -3,14 +3,14 @@
   const authError = document.getElementById('authError');
   function fatal(msg){ authError.textContent = msg; console.error(msg); }
 
-  let engine, supabase;
+  let engine;
   try {
     engine = CollageEngine(canvas);
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } catch (e) {
-    fatal('Setup failed: ' + (e && e.message ? e.message : e));
-    return;
+    console.error('Engine setup failed', e);
+    engine = { setLayers(){}, setSettings(){}, start(){} };
   }
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let session = null;
   let layers = []; // {id, name, storage_path, img, depth, scale, active, sort_order}
