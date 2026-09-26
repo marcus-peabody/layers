@@ -13,9 +13,15 @@ function CollageEngine(canvas){
   addEventListener('resize', resize); resize();
 
   let layers = [];
-  let settings = { depthScale: 1, speed: 1, density: 1.2 };
+  let settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 1 };
   let offsetX = 0, offsetY = 0, dragging = false, lastX = 0, lastY = 0;
   let onInteract = null;
+  const tilt = { enabled: false, baseBeta: null, baseGamma: null, curBeta: 0, curGamma: 0 };
+
+  function handleOrientation(e){
+    if (tilt.baseGamma === null){ tilt.baseBeta = e.beta || 0; tilt.baseGamma = e.gamma || 0; }
+    tilt.curBeta = e.beta || 0; tilt.curGamma = e.gamma || 0;
+  }
 
   function hash(a,b,c){ const x = Math.sin(a*127.1 + b*311.7 + c*57.3) * 43758.5453; return x - Math.floor(x); }
   function strHash(s){ let h = 0; for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0; return h; }
@@ -41,6 +47,12 @@ function CollageEngine(canvas){
 
   function draw(){
     ctx.clearRect(0,0,W,H);
+    let tiltX = 0, tiltY = 0;
+    if (tilt.enabled && tilt.baseGamma !== null){
+      const sens = settings.tiltSensitivity || 1;
+      tiltX = (tilt.curGamma - tilt.baseGamma) * sens * 6;
+      tiltY = (tilt.curBeta - tilt.baseBeta) * sens * 6;
+    }
     for (const l of layers){
       if (!l.active || !l.img || !l.img.width) continue;
       const base = Math.max(l.img.width, l.img.height);
@@ -48,7 +60,7 @@ function CollageEngine(canvas){
       const dw = l.img.width*fit, dh = l.img.height*fit;
       const cell = Math.max(dw,dh) * (1.7 * settings.density);
       const parallax = l.depth * settings.depthScale;
-      const camX = offsetX*parallax, camY = offsetY*parallax;
+      const camX = (offsetX+tiltX)*parallax, camY = (offsetY+tiltY)*parallax;
       const seed = strHash(l.id);
       const phaseX = ((seed%997)/997)*cell, phaseY = ((seed%991)/991)*cell;
       const iMin = Math.floor((camX-phaseX-dw)/cell)-1, iMax = Math.ceil((camX-phaseX+W)/cell)+1;
@@ -76,6 +88,19 @@ function CollageEngine(canvas){
     setLayers(v){ layers = v; },
     setSettings(v){ Object.assign(settings, v); },
     onFirstInteract(fn){ onInteract = fn; },
+    tiltSupported: typeof window.DeviceOrientationEvent !== 'undefined',
+    async enableTilt(){
+      tilt.baseBeta = null; tilt.baseGamma = null;
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+        const res = await DeviceOrientationEvent.requestPermission();
+        if (res !== 'granted') return false;
+      }
+      window.addEventListener('deviceorientation', handleOrientation);
+      tilt.enabled = true;
+      return true;
+    },
+    disableTilt(){ tilt.enabled = false; window.removeEventListener('deviceorientation', handleOrientation); },
+    isTiltEnabled(){ return tilt.enabled; },
     start(){ draw(); }
   };
 }
