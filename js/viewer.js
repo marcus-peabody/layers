@@ -30,14 +30,18 @@
   }
 
   async function loadImg(src){
+    const resp = await fetch(src);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status + ' fetching ' + src);
+    const blob = await resp.blob();
+    const objectUrl = URL.createObjectURL(blob);
     return new Promise((res, rej)=>{
       const im = new Image();
       im.onload = ()=>{
-        if (!im.naturalWidth) rej(new Error('loaded but has zero size — likely a content blocker on this network/device is substituting a blank image for: ' + src));
+        if (!im.naturalWidth) rej(new Error('decoded but has zero size: ' + src));
         else res(im);
       };
-      im.onerror = ()=>rej(new Error('image failed to load: ' + src));
-      im.src = src;
+      im.onerror = ()=>rej(new Error('failed to decode image: ' + src));
+      im.src = objectUrl;
     });
   }
 
