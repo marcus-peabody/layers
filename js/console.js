@@ -1,7 +1,5 @@
 (function(){
   const canvas = document.getElementById('canvas');
-  const authError = document.getElementById('authError');
-  function fatal(msg){ authError.textContent = msg; console.error(msg); }
 
   let engine;
   try {
@@ -12,7 +10,6 @@
   }
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  let session = null;
   let layers = []; // {id, name, storage_path, img, depth, scale, active, sort_order}
   let settings = { depth_scale: 1, speed: 1, density: 1.2 };
 
@@ -31,26 +28,6 @@
     });
   }
   function publicUrl(path){ return supabase.storage.from('layers').getPublicUrl(path).data.publicUrl; }
-
-  // ---- auth ----
-  const authBox = document.getElementById('authBox'), authError = document.getElementById('authError');
-  function updateAuthUI(){
-    authBox.style.display = session ? 'none' : 'flex';
-    document.getElementById('panel').style.display = session ? 'block' : 'none';
-    document.getElementById('toggle').style.display = session ? 'block' : 'none';
-  }
-  document.getElementById('signIn').onclick = async ()=>{
-    authError.textContent = '';
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error){ authError.textContent = error.message; return; }
-    session = data.session; updateAuthUI(); await loadAll();
-  };
-  document.getElementById('signOut').onclick = async ()=>{
-    await supabase.auth.signOut(); session = null; layers = []; engine.setLayers([]);
-    renderLayerList(); updateAuthUI();
-  };
 
   // ---- load everything ----
   async function loadAll(){
@@ -145,7 +122,7 @@
   }
 
   async function addFile(file, displayName){
-    if (!file.type || !file.type.startsWith('image/') || !session) return;
+    if (!file.type || !file.type.startsWith('image/')) return;
     let pngBlob;
     try { pngBlob = await toPngBlob(file); }
     catch (e) { alert('Could not read that image: ' + e.message); return; }
@@ -231,12 +208,10 @@
   // ---- boot ----
   (async ()=>{
     try {
-      const { data } = await supabase.auth.getSession();
-      session = data.session; updateAuthUI();
-      if (session) await loadAll();
+      await loadAll();
       engine.start();
     } catch (e) {
-      fatal('Startup failed: ' + (e && e.message ? e.message : e));
+      console.error('Startup failed', e);
     }
   })();
 })();
