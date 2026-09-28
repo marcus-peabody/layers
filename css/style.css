@@ -1,0 +1,50 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0e0e10;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  touch-action: none;
+}
+
+#status, #hint, #version {
+  position: fixed;
+  z-index: 2;
+  font: 12px/1.4 ui-monospace, Menlo, monospace;
+  color: #8d8d95;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+
+#status {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 14px;
+  right: 14px;
+}
+
+#status.error {
+  color: #e28a7a;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 10px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+#hint {
+  left: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+#version {
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  opacity: 0.6;
+}
+
+.gone { opacity: 0; }
