@@ -31,7 +31,7 @@
     if (!res.ok) throw new Error('manifest.json: HTTP ' + res.status);
     const m = await res.json();
     return {
-      settings: Object.assign({ tiltSensitivity: 1 }, m.settings || {}),
+      settings: Object.assign({ tiltSensitivity: 0.5 }, m.settings || {}),
       defs: (m.layers || []).map((d, i) => ({
         url: d.file,
         depth: d.depth,
@@ -102,8 +102,19 @@
     say(problems.join('\n'), true);
   }
 
-  const tiltBtn = document.getElementById('tiltBtn');
-  if ('ontouchstart' in window && engine.tiltSupported) {
+  const versionEl = document.getElementById('version');
+  if (versionEl) {
+    setInterval(() => {
+      const r = canvas.getBoundingClientRect();
+      const vv = window.visualViewport;
+      versionEl.textContent = 'v6 · canvas ' + Math.round(r.width) + '\u00d7' + Math.round(r.height)
+        + ' · screen ' + window.screen.width + '\u00d7' + window.screen.height
+        + ' · inner ' + window.innerWidth + '\u00d7' + window.innerHeight
+        + (vv ? ' · vv ' + Math.round(vv.width) + '\u00d7' + Math.round(vv.height) : '');
+    }, 500);
+  }
+
+  const tiltBtn = document.getElementById('tiltBtn');  if ('ontouchstart' in window && engine.tiltSupported) {
     tiltBtn.classList.remove('gone');
     tiltBtn.addEventListener('click', async () => {
       if (engine.isTiltEnabled()) {
