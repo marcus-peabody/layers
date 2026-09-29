@@ -9,9 +9,14 @@ html, body {
 
 canvas {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   display: block;
   touch-action: none;
+  width: 100vw;
+  height: 100vh;
+  width: 100lvw;
+  height: 100lvh;
 }
 
 #status, #hint, #version {
