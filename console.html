@@ -16,8 +16,9 @@
   <div id="msg"></div>
 
   <h2>Add images</h2>
-  <label id="drop" for="file">Tap or drop transparent PNGs here</label>
-  <input id="file" class="sr" type="file" accept="image/png" multiple>
+  <label id="drop" for="file">Tap or drop images here<br><span class="hint">PNG, JPEG, HEIC, GIF</span></label>
+  <input id="file" class="sr" type="file" accept="image/*" multiple>
+  <div id="pasteZone" contenteditable="true">Tap here, then paste — for an iPhone cutout: hold on a subject in Photos, Copy, then paste here</div>
 
   <h2>Scene</h2>
   <div id="scene"></div>
