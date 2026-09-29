@@ -16,7 +16,7 @@
   async function fromSupabase() {
     const [s, rows] = await Promise.all([Backend.getSettings(), Backend.listLayers(true)]);
     return {
-      settings: s ? { depthScale: s.depth_scale, speed: s.speed, density: s.density } : {},
+      settings: s ? { depthScale: s.depth_scale, speed: s.speed, density: s.density, tiltSensitivity: s.tilt_sensitivity } : {},
       defs: rows.map((r) => ({
         url: Backend.publicUrl(r.storage_path),
         depth: r.depth,
@@ -31,7 +31,7 @@
     if (!res.ok) throw new Error('manifest.json: HTTP ' + res.status);
     const m = await res.json();
     return {
-      settings: m.settings || {},
+      settings: Object.assign({ tiltSensitivity: 1 }, m.settings || {}),
       defs: (m.layers || []).map((d, i) => ({
         url: d.file,
         depth: d.depth,
@@ -100,5 +100,21 @@
   } catch (e) {
     problems.push('Error: ' + (e && e.message ? e.message : e));
     say(problems.join('\n'), true);
+  }
+
+  const tiltBtn = document.getElementById('tiltBtn');
+  if ('ontouchstart' in window && engine.tiltSupported) {
+    tiltBtn.classList.remove('gone');
+    tiltBtn.addEventListener('click', async () => {
+      if (engine.isTiltEnabled()) {
+        engine.disableTilt();
+        tiltBtn.textContent = 'Enable tilt';
+        tiltBtn.classList.remove('on');
+      } else {
+        const ok = await engine.enableTilt();
+        if (ok) { tiltBtn.textContent = 'Tilt on'; tiltBtn.classList.add('on'); }
+        else say('Tilt permission denied \u2014 check Settings \u2192 Safari \u2192 Motion & Orientation Access.', true);
+      }
+    });
   }
 })();
