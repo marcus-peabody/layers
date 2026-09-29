@@ -52,7 +52,9 @@ canvas {
 
 #version {
   right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: 14px;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  text-align: right;
   opacity: 0.6;
 }
 
