@@ -7,7 +7,7 @@
 //   layer = { img, depth, scale, opacity, seed }
 function CollageEngine(canvas) {
   const ctx = canvas.getContext('2d');
-  const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 1 };
+  const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.5 };
   let layers = [];
   let W = 0, H = 0;
   let panX = 0, panY = 0;
@@ -28,6 +28,7 @@ function CollageEngine(canvas) {
   function resize() {
     const dpr = window.devicePixelRatio || 1;
     const v = viewportSize();
+    if (v.w === W && v.h === H) return;   // skip the work when nothing changed
     W = v.w; H = v.h;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
@@ -139,6 +140,7 @@ function CollageEngine(canvas) {
   let lastFrameT = 0;
   function frame(t) {
     requestAnimationFrame(frame);
+    resize();
     const dt = lastFrameT ? Math.min(50, t - lastFrameT) : 16;
     lastFrameT = t;
     if (!dragging && (Math.abs(vx) > 0.001 || Math.abs(vy) > 0.001)) {
