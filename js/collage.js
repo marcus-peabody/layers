@@ -17,12 +17,13 @@ function CollageEngine(canvas) {
   const tilt = { enabled: false, baseBeta: null, baseGamma: null, beta: 0, gamma: 0 };
 
   // The visual viewport (window.innerHeight) shrinks when Safari's address bar
-  // is showing and grows when it hides. Sizing to it — and re-sizing whenever
-  // it changes — is what lets the canvas bleed fully under that chrome instead
-  // of leaving a gap that never gets redrawn.
+  // is showing. Sizing to that leaves a gap that's never drawn. Instead we size
+  // to the canvas's own CSS box, which style.css sets to 100lvh/100lvw — the
+  // "large viewport", i.e. the full screen — so the artwork always extends
+  // under Safari's translucent chrome instead of resizing to avoid it.
   function viewportSize() {
-    const vv = window.visualViewport;
-    return vv ? { w: vv.width, h: vv.height } : { w: window.innerWidth, h: window.innerHeight };
+    const r = canvas.getBoundingClientRect();
+    return { w: r.width, h: r.height };
   }
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -30,8 +31,6 @@ function CollageEngine(canvas) {
     W = v.w; H = v.h;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   window.addEventListener('resize', resize);
