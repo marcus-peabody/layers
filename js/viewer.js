@@ -8,7 +8,7 @@
     statusEl.className = isError ? 'error' : '';
   }
 
-  const engine = CollageEngine(canvas);
+  const engine = CollageEngine(canvas, { scroller: document.getElementById('scroller') });
   engine.onFirstInteract(() => hintEl.classList.add('gone'));
   engine.start();
 
@@ -107,7 +107,7 @@
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v6 · canvas ' + Math.round(r.width) + '\u00d7' + Math.round(r.height)
+      versionEl.textContent = 'v7 · canvas ' + Math.round(r.width) + '\u00d7' + Math.round(r.height)
         + ' · screen ' + window.screen.width + '\u00d7' + window.screen.height
         + ' · inner ' + window.innerWidth + '\u00d7' + window.innerHeight
         + (vv ? ' · vv ' + Math.round(vv.width) + '\u00d7' + Math.round(vv.height) : '');
