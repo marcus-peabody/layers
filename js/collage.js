@@ -1,18 +1,29 @@
-// Parallax collage engine. No dependencies.
+\// Parallax collage engine. No dependencies.
 //
 // Layers are drawn in array order (last = on top). Each layer is an infinite,
 // jittered grid of its image. Panning moves every layer by (pan * depth), so
 // higher-depth layers sweep past faster and read as closer.
 //
 //   layer = { img, depth, scale, opacity, seed }
-function CollageEngine(canvas) {
+//
+// opts.scroller (optional): a real, empty, overflow:scroll element the same
+// size as the canvas. When given, touch drags and wheel/trackpad scrolling
+// become genuine browser scrolling on that element instead of something we
+// simulate — which is what actually gets Safari to auto-hide its chrome on
+// iPhone. Desktop mouse click-and-drag is unaffected either way; native
+// scrolling doesn't respond to mouse drags, so that path stays exactly as it
+// was. Without opts.scroller, everything (touch, mouse, wheel) falls back to
+// the original simulated panning on the canvas itself.
+function CollageEngine(canvas, opts) {
+  opts = opts || {};
+  const scroller = opts.scroller || null;
   const ctx = canvas.getContext('2d');
   const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.5 };
   let layers = [];
   let W = 0, H = 0;
   let panX = 0, panY = 0;
   let dragging = false, lastX = 0, lastY = 0, lastT = 0;
-  let vx = 0, vy = 0;                 // momentum velocity, px/ms
+  let vx = 0, vy = 0;                 // momentum velocity, px/ms (mouse-drag path only)
   let firstInteractCb = null;
   const tilt = { enabled: false, baseBeta: null, baseGamma: null, beta: 0, gamma: 0 };
 
@@ -42,36 +53,86 @@ function CollageEngine(canvas) {
     if (firstInteractCb) { firstInteractCb(); firstInteractCb = null; }
   }
 
-  // ---- input: drag (touch + mouse) with momentum, and wheel/trackpad ----
-  canvas.addEventListener('pointerdown', (e) => {
-    dragging = true;
-    lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
-    vx = 0; vy = 0;
-    canvas.setPointerCapture(e.pointerId);
-    interacted();
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const now = performance.now();
-    const dt = Math.max(1, now - lastT);
-    const dx = e.clientX - lastX, dy = e.clientY - lastY;
-    panX -= dx * settings.speed;
-    panY -= dy * settings.speed;
-    // Smoothed velocity, so one jumpy sample right before release doesn't fling it.
-    vx = vx * 0.7 + (dx / dt) * 0.3;
-    vy = vy * 0.7 + (dy / dt) * 0.3;
-    lastX = e.clientX; lastY = e.clientY; lastT = now;
-  });
-  const stopDrag = () => { dragging = false; };
-  canvas.addEventListener('pointerup', stopDrag);
-  canvas.addEventListener('pointercancel', stopDrag);
-  canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    dragging = false; vx = 0; vy = 0;   // a wheel gesture overrides any touch momentum in flight
-    panX += e.deltaX * settings.speed;
-    panY += e.deltaY * settings.speed;
-    interacted();
-  }, { passive: false });
+  if (scroller) {
+    // ---- real native scrolling drives pan for touch, trackpad, and wheel ----
+    // The scroller is parked in the middle of a huge scroll range and quietly
+    // re-centered whenever it drifts too far, so scrolling feels infinite.
+    // Re-centering updates last{Left,Top} *before* the resulting scroll event
+    // arrives, so that event computes a delta of zero — the jump is invisible
+    // to panX/panY even though the scroller's own position just snapped.
+    const WORLD = 60000, CENTER = WORLD / 2, MARGIN = WORLD * 0.25;
+    let lastLeft = CENTER, lastTop = CENTER;
+    scroller.scrollLeft = CENTER;
+    scroller.scrollTop = CENTER;
+    scroller.addEventListener('scroll', () => {
+      const sl = scroller.scrollLeft, st = scroller.scrollTop;
+      panX += (sl - lastLeft) * settings.speed;
+      panY += (st - lastTop) * settings.speed;
+      lastLeft = sl; lastTop = st;
+      interacted();
+      if (sl < MARGIN || sl > WORLD - MARGIN || st < MARGIN || st > WORLD - MARGIN) {
+        scroller.scrollLeft = CENTER; scroller.scrollTop = CENTER;
+        lastLeft = CENTER; lastTop = CENTER;
+      }
+    }, { passive: true });
+
+    // Desktop mouse click-and-drag: native scrolling doesn't respond to this
+    // at all, so it's handled the same way as the no-scroller fallback below,
+    // just restricted to pointerType 'mouse' (touch already has real scrolling).
+    scroller.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      dragging = true;
+      lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
+      vx = 0; vy = 0;
+      scroller.setPointerCapture(e.pointerId);
+      interacted();
+    });
+    scroller.addEventListener('pointermove', (e) => {
+      if (!dragging || e.pointerType !== 'mouse') return;
+      const now = performance.now();
+      const dt = Math.max(1, now - lastT);
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      panX -= dx * settings.speed;
+      panY -= dy * settings.speed;
+      vx = vx * 0.7 + (dx / dt) * 0.3;
+      vy = vy * 0.7 + (dy / dt) * 0.3;
+      lastX = e.clientX; lastY = e.clientY; lastT = now;
+    });
+    const stopDragS = (e) => { if (e.pointerType === 'mouse') dragging = false; };
+    scroller.addEventListener('pointerup', stopDragS);
+    scroller.addEventListener('pointercancel', stopDragS);
+  } else {
+    // ---- fallback: simulate everything on the canvas itself (used when no
+    // scroller is supplied, e.g. the console's live preview) ----
+    canvas.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
+      vx = 0; vy = 0;
+      canvas.setPointerCapture(e.pointerId);
+      interacted();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const now = performance.now();
+      const dt = Math.max(1, now - lastT);
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      panX -= dx * settings.speed;
+      panY -= dy * settings.speed;
+      vx = vx * 0.7 + (dx / dt) * 0.3;
+      vy = vy * 0.7 + (dy / dt) * 0.3;
+      lastX = e.clientX; lastY = e.clientY; lastT = now;
+    });
+    const stopDrag = () => { dragging = false; };
+    canvas.addEventListener('pointerup', stopDrag);
+    canvas.addEventListener('pointercancel', stopDrag);
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      dragging = false; vx = 0; vy = 0;
+      panX += e.deltaX * settings.speed;
+      panY += e.deltaY * settings.speed;
+      interacted();
+    }, { passive: false });
+  }
 
   // ---- tilt (phone orientation) ----
   function handleOrientation(e) {
