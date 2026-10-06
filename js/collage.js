@@ -1,4 +1,4 @@
-\// Parallax collage engine. No dependencies.
+// Parallax collage engine. No dependencies.
 //
 // Layers are drawn in array order (last = on top). Each layer is an infinite,
 // jittered grid of its image. Panning moves every layer by (pan * depth), so
@@ -9,7 +9,7 @@
 // opts.scroller (optional): a real, empty, overflow:scroll element the same
 // size as the canvas. When given, touch drags and wheel/trackpad scrolling
 // become genuine browser scrolling on that element instead of something we
-// simulate — which is what actually gets Safari to auto-hide its chrome on
+// simulate -- which is what actually gets Safari to auto-hide its chrome on
 // iPhone. Desktop mouse click-and-drag is unaffected either way; native
 // scrolling doesn't respond to mouse drags, so that path stays exactly as it
 // was. Without opts.scroller, everything (touch, mouse, wheel) falls back to
@@ -29,8 +29,8 @@ function CollageEngine(canvas, opts) {
 
   // The visual viewport (window.innerHeight) shrinks when Safari's address bar
   // is showing. Sizing to that leaves a gap that's never drawn. Instead we size
-  // to the canvas's own CSS box, which style.css sets to 100lvh/100lvw — the
-  // "large viewport", i.e. the full screen — so the artwork always extends
+  // to the canvas's own CSS box, which style.css sets to 100lvh/100lvw -- the
+  // "large viewport", i.e. the full screen -- so the artwork always extends
   // under Safari's translucent chrome instead of resizing to avoid it.
   function viewportSize() {
     const r = canvas.getBoundingClientRect();
@@ -58,7 +58,7 @@ function CollageEngine(canvas, opts) {
     // The scroller is parked in the middle of a huge scroll range and quietly
     // re-centered whenever it drifts too far, so scrolling feels infinite.
     // Re-centering updates last{Left,Top} *before* the resulting scroll event
-    // arrives, so that event computes a delta of zero — the jump is invisible
+    // arrives, so that event computes a delta of zero -- the jump is invisible
     // to panX/panY even though the scroller's own position just snapped.
     const WORLD = 60000, CENTER = WORLD / 2, MARGIN = WORLD * 0.25;
     let lastLeft = CENTER, lastTop = CENTER;

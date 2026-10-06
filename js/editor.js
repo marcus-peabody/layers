@@ -1,15 +1,27 @@
-(async function () {
+// In-situ editor: operates on the SAME CollageEngine instance the viewer is
+// already rendering, so edits apply directly to the live, public collage --
+// there's no separate preview to keep in sync. Call initEditor(engine,
+// collage, hasEditAccess) once, after the viewer has loaded that collage.
+// Does nothing if Supabase isn't configured, there's no specific collage
+// loaded (e.g. the static fallback), or this browser doesn't have edit
+// access to it (no remembered/valid ?edit= token) -- the edit FAB just
+// stays hidden in all of those cases.
+function initEditor(engine, collage, hasEditAccess) {
+  if (Backend.problem || !Backend.configured || !collage || !hasEditAccess) return;
+
   const $ = (id) => document.getElementById(id);
-  const canvas = $('canvas');
+  const fab = $('editFab');
+  const panel = $('panel');
   const msgEl = $('msg');
   const listEl = $('list');
 
-  // The live preview only exists on wide screens (the canvas is hidden on phones).
-  const engine = CollageEngine(canvas);
-  if (!window.matchMedia || window.matchMedia('(min-width: 900px)').matches) engine.start();
+  fab.classList.remove('gone');
 
   let items = [];   // [{ row, img, layer, failed }] in draw order (last = in front)
-  let settings = { depth_scale: 1, speed: 1, density: 1.2, tilt_sensitivity: 1 };
+  // The collage row already carries its own settings -- no extra fetch needed.
+  let settings = Object.assign({ tilt_sensitivity: 0.5 }, collage);
+  let editing = false;
+  let loaded = false;
 
   // ---------- small helpers ----------
   function el(tag, props, ...kids) {
@@ -41,7 +53,7 @@
   }
   async function save(fn) {
     try { await fn(); flashSaved(); }
-    catch (e) { say('Not saved — ' + e.message, 'error'); }
+    catch (e) { say('Not saved -- ' + e.message, 'error'); }
   }
 
   function slider(label, min, max, step, value, onInput, onChange) {
@@ -62,8 +74,15 @@
     return item;
   }
 
+  // While editing, hidden layers still show (dimmed) so you can see what
+  // you're toggling. Closed, it's exactly what a visitor sees: active only.
   function refreshPreview() {
-    engine.setLayers(items.filter((i) => i.img && i.row.active).map((i) => i.layer));
+    const visible = items.filter((i) => i.img);
+    if (editing) {
+      engine.setLayers(visible.map((i) => Object.assign({}, i.layer, { opacity: i.row.active ? 1 : 0.15 })));
+    } else {
+      engine.setLayers(visible.filter((i) => i.row.active).map((i) => i.layer));
+    }
   }
 
   // Move a layer toward the front (dir = +1) or the back (dir = -1).
@@ -85,7 +104,7 @@
     try {
       await Backend.deleteLayer(item.row.id);
     } catch (e) {
-      say('Not deleted — ' + e.message, 'error');
+      say('Not deleted -- ' + e.message, 'error');
       return;
     }
     Backend.deleteFile(item.row.storage_path).catch(() => { /* the row is gone; a leftover file is harmless */ });
@@ -116,22 +135,22 @@
           el('span', { class: 'name' }, row.name + (item.failed ? ' (image failed to load)' : '')),
           el('label', { class: 'onoff' }, on, ' show')),
         slider('Size', 0.2, 4, 0.05, row.scale,
-          (v) => { row.scale = v; item.layer.scale = v; },
+          (v) => { row.scale = v; item.layer.scale = v; refreshPreview(); },
           (v) => save(() => Backend.updateLayer(row.id, { scale: v }))),
         slider('Depth', 0.1, 2.5, 0.05, row.depth,
-          (v) => { row.depth = v; item.layer.depth = v; },
+          (v) => { row.depth = v; item.layer.depth = v; refreshPreview(); },
           (v) => save(() => Backend.updateLayer(row.id, { depth: v })))),
       el('div', { class: 'btns' },
-        el('button', { class: 'btn', type: 'button', title: 'Bring forward', 'aria-label': 'Bring forward', ...(atFront ? { disabled: '' } : {}), onclick: () => move(idx, +1) }, '▲'),
-        el('button', { class: 'btn', type: 'button', title: 'Send back', 'aria-label': 'Send back', ...(atBack ? { disabled: '' } : {}), onclick: () => move(idx, -1) }, '▼'),
-        el('button', { class: 'btn del', type: 'button', title: 'Delete', 'aria-label': 'Delete', onclick: () => remove(item) }, '✕')));
+        el('button', { class: 'btn', type: 'button', title: 'Bring forward', 'aria-label': 'Bring forward', ...(atFront ? { disabled: '' } : {}), onclick: () => move(idx, +1) }, '^'),
+        el('button', { class: 'btn', type: 'button', title: 'Send back', 'aria-label': 'Send back', ...(atBack ? { disabled: '' } : {}), onclick: () => move(idx, -1) }, 'v'),
+        el('button', { class: 'btn del', type: 'button', title: 'Delete', 'aria-label': 'Delete', onclick: () => remove(item) }, 'x')));
   }
 
   // The list shows the front-most layer first, like most design tools.
   function renderList() {
     listEl.textContent = '';
     if (!items.length) {
-      listEl.append(el('p', { class: 'muted' }, 'No layers yet — add some PNGs above.'));
+      listEl.append(el('p', { class: 'muted' }, 'No layers yet -- add some PNGs above.'));
       return;
     }
     for (let idx = items.length - 1; idx >= 0; idx--) listEl.append(rowEl(items[idx], idx));
@@ -139,7 +158,7 @@
 
   // ---------- uploading ----------
   // Big images make the viewer slow on phones, so shrink anything over maxSide.
-  // GIFs are left untouched — redrawing one to canvas keeps only a single frame,
+  // GIFs are left untouched -- redrawing one to canvas keeps only a single frame,
   // which would silently kill the animation.
   async function fitForWeb(file, maxSide) {
     if (file.type === 'image/gif') return file;
@@ -148,9 +167,6 @@
       let img;
       try { img = await loadImage(url); } finally { URL.revokeObjectURL(url); }
       const long = Math.max(img.naturalWidth, img.naturalHeight);
-      // PNGs may carry transparency; keep them PNG. Everything else (JPEG, HEIC,
-      // photos in general) has no alpha channel, so re-encode as JPEG — much
-      // smaller than PNG for a photo, at no visible quality cost.
       const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
       if (long <= maxSide && file.type === outType) return file;
       const k = Math.min(1, maxSide / long);
@@ -169,11 +185,12 @@
 
   async function addOne(file) {
     const blob = await fitForWeb(file, 1200);
-    const path = uuid() + (EXT[blob.type] || '.png');
+    const path = collage.id + '/' + uuid() + (EXT[blob.type] || '.png');
     await Backend.uploadFile(path, blob);
     let row;
     try {
       row = await Backend.insertLayer({
+        collage_id: collage.id,
         name: file.name,
         storage_path: path,
         depth: +(0.3 + Math.random() * 1.5).toFixed(2),
@@ -195,9 +212,9 @@
     let added = 0;
     const errors = [];
     for (let k = 0; k < images.length; k++) {
-      say('Uploading ' + (k + 1) + ' of ' + images.length + '…');
+      say('Uploading ' + (k + 1) + ' of ' + images.length + '...');
       try { await addOne(images[k]); added++; }
-      catch (e) { errors.push(images[k].name + ' — ' + e.message); }
+      catch (e) { errors.push(images[k].name + ' -- ' + e.message); }
     }
     renderList();
     refreshPreview();
@@ -215,29 +232,34 @@
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
 
-  // Paste zone: iOS lets you long-press a photo's subject, "Copy", then paste it
-  // anywhere. Needs a focusable/editable element to reliably receive the paste.
+  // Paste zone for iPhone sticker cutouts: a real <input> with the instruction
+  // as placeholder text, not actual content -- placeholder text is never
+  // selectable, which is what made the old contenteditable version annoying.
   const pasteZone = $('pasteZone');
-  const pasteDefault = pasteZone.textContent;
+  const pastePlaceholder = pasteZone.placeholder;
   pasteZone.addEventListener('paste', (e) => {
     e.preventDefault();
-    const items2 = (e.clipboardData && e.clipboardData.items) || [];
+    const clipItems = (e.clipboardData && e.clipboardData.items) || [];
     const files = [];
-    for (const it of items2) {
+    for (const it of clipItems) {
       if (it.type && it.type.startsWith('image/')) {
         const f = it.getAsFile();
         if (f) files.push(f);
       }
     }
-    pasteZone.textContent = files.length ? 'Added \u2014 paste another' : 'No image found in the clipboard';
-    setTimeout(() => { pasteZone.textContent = pasteDefault; }, 2000);
+    pasteZone.value = '';
+    pasteZone.placeholder = files.length ? 'Added -- paste another' : 'No image found in the clipboard';
+    setTimeout(() => { pasteZone.placeholder = pastePlaceholder; }, 2000);
     if (files.length) addFiles(files);
   });
+  // Covers the rare case where something lands as typed/dropped text in the
+  // input rather than a proper paste event (clears it so it can't linger).
+  pasteZone.addEventListener('input', () => { pasteZone.value = ''; });
 
   // ---------- scene settings ----------
   function buildScene() {
-    const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 1 });
-    const persist = () => save(() => Backend.updateSettings({
+    const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 0.5 });
+    const persist = () => save(() => Backend.updateCollage(collage.id, {
       depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density, tilt_sensitivity: settings.tilt_sensitivity
     }));
     const scene = $('scene');
@@ -246,33 +268,41 @@
       slider('Apparent depth', 0.1, 2.5, 0.05, settings.depth_scale, (v) => { settings.depth_scale = v; apply(); }, persist),
       slider('Scroll speed', 0.2, 3, 0.1, settings.speed, (v) => { settings.speed = v; apply(); }, persist),
       slider('Density', 0.5, 3, 0.1, settings.density, (v) => { settings.density = v; apply(); }, persist),
-      slider('Tilt sensitivity', 0.5, 5, 0.1, settings.tilt_sensitivity ?? 1, (v) => { settings.tilt_sensitivity = v; apply(); }, persist));
+      slider('Tilt sensitivity', 0.1, 5, 0.1, settings.tilt_sensitivity ?? 0.5, (v) => { settings.tilt_sensitivity = v; apply(); }, persist));
     apply();
   }
 
-  $('toggle').addEventListener('click', () => {
-    const hidden = $('panel').classList.toggle('hidden');
-    $('toggle').textContent = hidden ? 'Show panel' : 'Hide panel';
-  });
+  // ---------- open / close ----------
+  async function ensureLoaded() {
+    if (loaded) return;
+    loaded = true;
+    say('Loading...');
+    try {
+      buildScene();
+      const rows = await Backend.listLayers(collage.id, false);
+      items = await Promise.all(rows.map(makeItem));
+      renderList();
+      const failed = items.filter((i) => i.failed).length;
+      say(failed ? failed + ' image(s) could not be loaded.' : '');
+    } catch (e) {
+      say('Could not load -- ' + e.message, 'error');
+    }
+  }
 
-  // ---------- boot ----------
-  if (Backend.problem) { say(Backend.problem, 'error'); return; }
-  if (!Backend.configured) {
-    say('Supabase isn\u2019t set up yet. Add your project URL and public key to js/config.js.', 'error');
-    return;
-  }
-  say('Loading…');
-  try {
-    const s = await Backend.getSettings();
-    if (s) settings = Object.assign({ tilt_sensitivity: 1 }, s);
-    buildScene();
-    const rows = await Backend.listLayers(false);
-    items = await Promise.all(rows.map(makeItem));
-    renderList();
+  async function open() {
+    panel.classList.remove('hidden');
+    fab.classList.add('on');
+    await ensureLoaded();
+    editing = true;
     refreshPreview();
-    const failed = items.filter((i) => i.failed).length;
-    say(failed ? failed + ' image(s) could not be loaded.' : '', failed ? 'error' : '');
-  } catch (e) {
-    say('Could not load — ' + e.message, 'error');
   }
-})();
+  function close() {
+    panel.classList.add('hidden');
+    fab.classList.remove('on');
+    editing = false;
+    refreshPreview();
+  }
+
+  fab.addEventListener('click', () => { (panel.classList.contains('hidden') ? open() : close()); });
+  $('closePanel').addEventListener('click', close);
+}

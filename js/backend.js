@@ -1,7 +1,22 @@
-// Minimal Supabase client using plain fetch — no library, no CDN.
-// Two Supabase services are used:
-//   /rest/v1/...     the database (tables `layers` and `settings`)
-//   /storage/v1/...  file storage (bucket `layers`)
+// Minimal Supabase client using plain fetch -- no library, no CDN.
+// Three Supabase services are used:
+//   /rest/v1/...     the database (tables `collages` and `layers`)
+//   /storage/v1/...  file storage (bucket `layers`, files namespaced
+//                     "<collageId>/<file>" so a whole collage's images can be
+//                     listed and removed together)
+
+// A collage's edit (collaborate) link is read once, then remembered on this
+// device/browser so the plain read-only link can stay read-only for everyone,
+// including its owner, without re-pasting the token on every visit.
+function getRememberedEditToken(slug) {
+  try { return localStorage.getItem('editToken:' + slug) || ''; } catch (e) { return ''; }
+}
+function rememberEditToken(slug, token) {
+  try { localStorage.setItem('editToken:' + slug, token); } catch (e) { /* storage unavailable; token just won't persist */ }
+}
+function forgetEditToken(slug) {
+  try { localStorage.removeItem('editToken:' + slug); } catch (e) { /* ignore */ }
+}
 
 // Resolves with a loaded <img>, or rejects with a readable error.
 function loadImage(src) {
@@ -74,16 +89,29 @@ const Backend = (function () {
 
     publicUrl(path) { return base + '/storage/v1/object/public/layers/' + path; },
 
-    async getSettings() {
-      const rows = await rest('settings?select=*&id=eq.1', 'load settings');
+    // ---------- collages ----------
+    listCollages() {
+      return rest('collages?select=*&order=created_at.asc', 'load collages');
+    },
+    async getCollageBySlug(slug) {
+      const rows = await rest('collages?select=*&slug=eq.' + encodeURIComponent(slug), 'load collage');
       return (rows && rows[0]) || null;
     },
-    updateSettings(patch) {
-      return rest('settings?id=eq.1', 'save settings', 'PATCH', patch, 'return=minimal');
+    async insertCollage(row) {
+      const rows = await rest('collages?select=*', 'create collage', 'POST', row, 'return=representation');
+      return rows[0];
+    },
+    updateCollage(id, patch) {
+      return rest('collages?id=eq.' + encodeURIComponent(id), 'save collage', 'PATCH', patch, 'return=minimal');
+    },
+    deleteCollageRow(id) {
+      return rest('collages?id=eq.' + encodeURIComponent(id), 'delete collage', 'DELETE', undefined, 'return=minimal');
     },
 
-    listLayers(activeOnly) {
-      return rest('layers?select=*&order=sort_order.asc,created_at.asc' + (activeOnly ? '&active=eq.true' : ''), 'load layers');
+    // ---------- layers (scoped to one collage) ----------
+    listLayers(collageId, activeOnly) {
+      return rest('layers?select=*&collage_id=eq.' + encodeURIComponent(collageId)
+        + '&order=sort_order.asc,created_at.asc' + (activeOnly ? '&active=eq.true' : ''), 'load layers');
     },
     async insertLayer(row) {
       const rows = await rest('layers?select=*', 'save layer', 'POST', row, 'return=representation');
@@ -96,6 +124,7 @@ const Backend = (function () {
       return rest('layers?id=eq.' + encodeURIComponent(id), 'delete layer', 'DELETE', undefined, 'return=minimal');
     },
 
+    // ---------- files ----------
     // Same request shape the official supabase-js library sends for uploads.
     uploadFile(path, blob) {
       const form = new FormData();
@@ -109,6 +138,31 @@ const Backend = (function () {
     },
     deleteFile(path) {
       return request(base + '/storage/v1/object/layers/' + path, { method: 'DELETE', headers: headers() }, 'delete file');
+    },
+    async listFiles(prefix) {
+      const result = await request(base + '/storage/v1/object/list/layers', {
+        method: 'POST',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ prefix, limit: 1000 })
+      }, 'list files');
+      return result || [];
+    },
+    async deleteFilesByPrefix(prefix) {
+      const files = await this.listFiles(prefix);
+      const paths = files.map((f) => prefix + f.name);
+      if (!paths.length) return;
+      await request(base + '/storage/v1/object/layers', {
+        method: 'DELETE',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ prefixes: paths })
+      }, 'delete files');
+    },
+
+    // Deletes a collage's row (its layers cascade in the database) and every
+    // file namespaced under its storage prefix.
+    async deleteCollage(id) {
+      await this.deleteFilesByPrefix(id + '/');
+      await this.deleteCollageRow(id);
     }
   };
 })();
