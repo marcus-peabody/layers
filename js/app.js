@@ -15,6 +15,7 @@
   }
 
   galleryView.classList.add('gone');
+  viewerView.classList.remove('gone');
 
   const urlToken = params.get('edit');
   if (urlToken) {
