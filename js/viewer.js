@@ -158,7 +158,7 @@ function runViewer(slug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v10 - canvas ' + Math.round(r.width) + '\u00d7' + Math.round(r.height)
+      versionEl.textContent = 'v11 - canvas ' + Math.round(r.width) + '\u00d7' + Math.round(r.height)
         + ' - screen ' + window.screen.width + '\u00d7' + window.screen.height
         + ' - inner ' + window.innerWidth + '\u00d7' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + '\u00d7' + Math.round(vv.height) : '');

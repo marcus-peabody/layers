@@ -17,10 +17,29 @@ canvas {
   top: 0;
   left: 0;
   display: block;
-  touch-action: none;
   width: 100%;
   height: 100%;
+  z-index: 0;
 }
+
+/* Real, empty, scrollable element on top of the canvas. Touch drags, trackpad
+   swipes and wheel scrolling become genuine browser scrolling here (which is
+   what lets Safari auto-hide its chrome); collage.js reads the scroll position
+   each frame. Mouse click-and-drag is handled separately. */
+#scroller {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+  -webkit-overflow-scrolling: touch;
+  z-index: 1;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#scroller::-webkit-scrollbar { display: none; }
+#spacer { width: 60000px; height: 60000px; }
 
 #status, #hint, #version {
   position: fixed;
@@ -78,3 +97,6 @@ canvas {
   transition: opacity 0.3s;
 }
 #tiltBtn.on { color: #e8b04b; border-color: #e8b04b; }
+
+/* The viewer wrapper must fill the screen, or #scroller (height:100%) collapses to 0 and touch panning dies. */
+#viewerView { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
