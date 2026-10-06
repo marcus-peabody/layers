@@ -10,37 +10,17 @@ html, body {
 
 canvas {
   /* Deliberately NOT position:fixed: iOS Safari has a long-standing bug where a
-     fixed element sized with viewport units (vh/dvh/lvh — any of them) stays
+     fixed element sized with viewport units (vh/dvh/lvh -- any of them) stays
      bound to the toolbar-reduced visual viewport, no matter which unit is used.
      Absolute, inside the sized+positioned <body> above, avoids that bug. */
   position: absolute;
   top: 0;
   left: 0;
   display: block;
+  touch-action: none;
   width: 100%;
   height: 100%;
-  z-index: 0;
 }
-
-/* Real, empty, scrollable element sitting on top of the canvas. Touch drags,
-   trackpad swipes, and mouse-wheel scrolling all become genuine browser
-   scrolling here — the only thing that actually gets Safari to auto-hide its
-   chrome — and collage.js just reads the resulting scroll position each frame.
-   Desktop mouse click-and-drag is handled separately and unaffected. */
-#scroller {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: scroll;
-  -webkit-overflow-scrolling: touch;
-  z-index: 1;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-#scroller::-webkit-scrollbar { display: none; }
-#spacer { width: 60000px; height: 60000px; }
 
 #status, #hint, #version {
   position: fixed;
@@ -79,6 +59,10 @@ canvas {
 }
 
 .gone { opacity: 0; }
+
+/* Elements that start hidden must also be non-interactive and out of layout. */
+#viewerView.gone, #galleryView.gone, #editFab.gone, #shareBtn.gone,
+#shareCollab.gone, #tiltBtn.gone, #galleryLink.gone { display: none; }
 
 #tiltBtn {
   position: fixed;

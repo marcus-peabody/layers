@@ -3,7 +3,7 @@
     "depthScale": 1,
     "speed": 1,
     "density": 1.2,
-    "tiltSensitivity": 1
+    "tiltSensitivity": 0.5
   },
   "layers": [
     { "file": "images/02.png", "depth": 0.25, "scale": 1.6 },
