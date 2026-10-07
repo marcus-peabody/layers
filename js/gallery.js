@@ -105,7 +105,7 @@ function runGallery() {
 
     if (canEdit) {
       const del = document.createElement('button');
-      del.type = 'button'; del.className = 'btn del'; del.textContent = 'x'; del.title = 'Delete collage';
+      del.type = 'button'; del.className = 'btn del'; del.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>'; del.title = 'Delete collage';
       del.setAttribute('aria-label', 'Delete collage');
       del.addEventListener('click', async () => {
         if (!window.confirm('Delete "' + (c.title || c.slug) + '" and all its images? This can\'t be undone.')) return;
@@ -154,7 +154,7 @@ function runGallery() {
     try {
       const c = await Backend.insertCollage({
         slug, title: title.trim() || 'Untitled', edit_token: token,
-        depth_scale: 1, speed: 1, density: 1.2, tilt_sensitivity: 0.5
+        depth_scale: 1, speed: 1, density: 1.2, tilt_sensitivity: 0.15
       });
       rememberEditToken(slug, token);
       // open=editor: land straight in the editor panel, not on the collage

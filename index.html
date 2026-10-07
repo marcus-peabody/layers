@@ -30,7 +30,7 @@
   <canvas id="canvas"></canvas>
   <div id="status"></div>
   <div id="hint">Drag or scroll to explore</div>
-  <div id="version">v16</div>
+  <div id="version">v17</div>
 
   <div id="shareMenu" class="hidden">
     <button id="shareReadOnly" type="button">Copy read-only link</button>
@@ -93,8 +93,8 @@
     <input id="titleInput" type="text" maxlength="80" placeholder="Collage name" autocomplete="off">
 
     <h2>Add images</h2>
-    <label id="drop" for="file">Tap or drop images here<br><span class="hint">PNG, JPEG, HEIC, GIF</span></label>
-    <input id="file" class="sr" type="file" accept="image/*" multiple>
+    <label id="drop" for="file">Tap or drop images here<br><span class="hint">PNG, JPEG, HEIC, GIF, short video</span></label>
+    <input id="file" class="sr" type="file" accept="image/*,video/*" multiple>
     <input id="pasteZone" type="text" placeholder="Tap here to paste stickers">
 
     <h2>Scene</h2>
@@ -109,6 +109,7 @@
 
 <script src="js/collage.js"></script>
 <script src="js/gif.js"></script>
+<script src="js/gifenc.js"></script>
 <script src="js/config.js"></script>
 <script src="js/backend.js"></script>
 <script src="js/gallery.js"></script>

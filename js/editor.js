@@ -17,7 +17,7 @@ function initEditor(engine, collage, hasEditAccess) {
 
   let items = [];   // [{ row, img, layer, failed }] in draw order (last = in front)
   // The collage row already carries its own settings -- no extra fetch needed.
-  let settings = Object.assign({ tilt_sensitivity: 0.5 }, collage);
+  let settings = Object.assign({ tilt_sensitivity: 0.15 }, collage);
   let editing = false;
   let loaded = false;
   let dirty = false;   // something changed since the gallery cover was last captured
@@ -205,7 +205,13 @@ function initEditor(engine, collage, hasEditAccess) {
   const EXT = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif' };
 
   async function addOne(file) {
-    const blob = await fitForWeb(file, 1200);
+    let blob;
+    if (file.type.startsWith('video/')) {
+      blob = await videoToGif(file);   // short clips become GIFs that step with scroll
+      file = { name: file.name.replace(/\.[^.]+$/, '') + '.gif' };
+    } else {
+      blob = await fitForWeb(file, 1200);
+    }
     const path = collage.id + '/' + uuid() + (EXT[blob.type] || '.png');
     await Backend.uploadFile(path, blob);
     let row;
@@ -228,12 +234,12 @@ function initEditor(engine, collage, hasEditAccess) {
 
   async function addFiles(fileList) {
     const files = Array.from(fileList);
-    const images = files.filter((f) => f.type.startsWith('image/'));
+    const images = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const skipped = files.length - images.length;
     let added = 0;
     const errors = [];
     for (let k = 0; k < images.length; k++) {
-      say('Uploading ' + (k + 1) + ' of ' + images.length + '...');
+      say((images[k].type.startsWith('video/') ? 'Converting video ' : 'Uploading ') + (k + 1) + ' of ' + images.length + '...');
       try { await addOne(images[k]); added++; }
       catch (e) { errors.push(images[k].name + ' -- ' + e.message); }
     }
@@ -290,7 +296,7 @@ function initEditor(engine, collage, hasEditAccess) {
 
   // ---------- scene settings ----------
   function buildScene() {
-    const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 0.5 });
+    const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 0.15 });
     const persist = () => save(() => Backend.updateCollage(collage.id, {
       depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density, tilt_sensitivity: settings.tilt_sensitivity
     }));
@@ -300,7 +306,7 @@ function initEditor(engine, collage, hasEditAccess) {
       slider('Apparent depth', 0.1, 2.5, 0.05, settings.depth_scale, (v) => { settings.depth_scale = v; apply(); }, persist),
       slider('Scroll speed', 0.2, 3, 0.1, settings.speed, (v) => { settings.speed = v; apply(); }, persist),
       slider('Density', 0.5, 3, 0.1, settings.density, (v) => { settings.density = v; apply(); }, persist),
-      slider('Tilt sensitivity', 0.1, 5, 0.1, settings.tilt_sensitivity ?? 0.5, (v) => { settings.tilt_sensitivity = v; apply(); }, persist));
+      slider('Tilt sensitivity', 0, 0.3, 0.01, Math.min(0.3, settings.tilt_sensitivity ?? 0.15), (v) => { settings.tilt_sensitivity = v; apply(); }, persist));
     apply();
   }
 

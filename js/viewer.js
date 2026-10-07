@@ -34,7 +34,7 @@ function runViewer(slug) {
     if (!res.ok) throw new Error('manifest.json: HTTP ' + res.status);
     const m = await res.json();
     return {
-      settings: Object.assign({ tiltSensitivity: 0.5 }, m.settings || {}),
+      settings: Object.assign({ tiltSensitivity: 0.15 }, m.settings || {}),
       defs: (m.layers || []).map((d, i) => ({
         url: d.file,
         depth: d.depth,
@@ -222,12 +222,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v16';
+  versionEl.textContent = 'v17';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v16 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v17 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');

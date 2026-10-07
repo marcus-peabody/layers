@@ -23,7 +23,7 @@ function CollageEngine(canvas, opts) {
   opts = opts || {};
   const scroller = opts.scroller || null;
   const ctx = canvas.getContext('2d');
-  const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.5 };
+  const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.15 };
   let layers = [];
   let W = 0, H = 0;
   let panX = 0, panY = 0;
@@ -235,7 +235,10 @@ function CollageEngine(canvas, opts) {
 
   return {
     setLayers(v) { layers = v; },
-    setSettings(v) { Object.assign(settings, v); },
+    setSettings(v) {
+      Object.assign(settings, v);
+      if (settings.tiltSensitivity > 0.3) settings.tiltSensitivity = 0.3;   // old collages saved a larger range
+    },
     onFirstInteract(fn) { firstInteractCb = fn; },
     tiltSupported: typeof window.DeviceOrientationEvent !== 'undefined',
     async enableTilt() {

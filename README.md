@@ -30,6 +30,7 @@ js/backend.js     tiny Supabase client using plain fetch (no library, no CDN)
 js/config.js      YOUR Supabase URL + public key go here
 js/viewer.js      loads the piece, the settings dock (share, edit, tilt, menu)
 js/gif.js         tiny GIF decoder: animated GIFs advance as you scroll
+js/gifenc.js      tiny GIF encoder: short videos are converted to GIFs on upload
 js/editor.js      the in-situ editor (upload, reorder, scene settings)
 SUPABASE-SETUP.md how the Supabase side is set up
 ```
@@ -64,11 +65,11 @@ already-updated result immediately.
 - **Add images:** tap the box (phone) or drop files on it (desktop). Anything
   larger than 1200px is shrunk before upload so the viewer stays fast. GIFs are
   left untouched; in the collage a GIF steps through its frames as you scroll
-  (it doesn't play by itself).
+  (it doesn't play by itself). Short video clips are converted to GIFs in the browser (first 6 seconds, up to 40 frames).
 - **Paste a sticker:** copy a subject cut out in Photos, tap the "Tap here to
   paste stickers" box, then paste.
 - **Scene:** *Apparent depth* (overall parallax strength), *Scroll speed*,
-  *Density* (bigger = images further apart), *Tilt sensitivity*.
+  *Density* (bigger = images further apart), *Tilt sensitivity* (0-0.3, default 0.15).
 - **Layers:** the list shows the front-most layer first. Per layer: *Size*,
   *Depth* (how fast it moves: small = far/slow, large = near/fast; a layer can
   only sit between the depths of the layers behind and in front of it, so the
