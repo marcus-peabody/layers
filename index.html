@@ -30,7 +30,7 @@
   <canvas id="canvas"></canvas>
   <div id="status"></div>
   <div id="hint">Drag or scroll to explore</div>
-  <div id="version">v14</div>
+  <div id="version">v15</div>
 
   <div id="shareMenu" class="hidden">
     <button id="shareReadOnly" type="button">Copy read-only link</button>
@@ -44,8 +44,9 @@
     <div id="dockActions">
       <button id="dShare" class="gone" type="button" aria-label="Share" title="Share">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle>
-          <line x1="8.6" y1="10.6" x2="15.4" y2="6.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"></line>
+          <path d="M8.5 9H7a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-1.5"></path>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+          <polyline points="8.5 6.5 12 3 15.5 6.5"></polyline>
         </svg>
       </button>
       <button id="dEdit" class="gone" type="button" aria-label="Edit" title="Edit">
@@ -55,13 +56,22 @@
       </button>
       <button id="dTilt" class="gone" type="button" aria-label="Tilt" title="Tilt">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>
+          <g transform="rotate(-8 12 12)">
+            <rect x="8" y="4" width="8" height="16" rx="1.5"></rect>
+            <line x1="12" y1="16.5" x2="12.01" y2="16.5"></line>
+          </g>
+          <path d="M5.2 8.5c-1.1 2-1.1 5 0 7"></path>
+          <path d="M2.6 7c-1.7 3-1.7 7 0 10"></path>
+          <path d="M18.8 8.5c1.1 2 1.1 5 0 7"></path>
+          <path d="M21.4 7c1.7 3 1.7 7 0 10"></path>
         </svg>
       </button>
       <a id="dMenu" class="gone" href="./" aria-label="All collages" title="All collages">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
-          <rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="3.2" width="5" height="7" rx="1"></rect>
+          <rect x="14" y="3.2" width="5" height="7" rx="1"></rect>
+          <rect x="5" y="13.8" width="5" height="7" rx="1"></rect>
+          <rect x="14" y="13.8" width="5" height="7" rx="1"></rect>
         </svg>
       </a>
     </div>
