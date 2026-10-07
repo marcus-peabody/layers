@@ -29,6 +29,10 @@ canvas {
   left: -160px;
   width: calc(100% + 320px);
   height: calc(100% + 320px);
+  /* lvh = the tallest the viewport ever gets (Safari's bars collapsed). Sizing
+     to it keeps the canvas the same size while the bars slide in and out, so the
+     big backing store is never reallocated mid-scroll (that was the lag). */
+  height: calc(100lvh + 320px);
   display: block;
   z-index: 0;
 }
