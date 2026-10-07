@@ -65,7 +65,7 @@ already-updated result immediately.
 - **Add images:** tap the box (phone) or drop files on it (desktop). Anything
   larger than 1200px is shrunk before upload so the viewer stays fast. GIFs are
   left untouched; in the collage a GIF steps through its frames as you scroll
-  (it doesn't play by itself). Short video clips are converted to GIFs in the browser (first 6 seconds, up to 40 frames).
+  (it doesn't play by itself). Short video clips are converted to GIFs in the browser (first 4 seconds, at most 12 frames, small and 64 colours so it stays light).
 - **Paste a sticker:** copy a subject cut out in Photos, tap the "Tap here to
   paste stickers" box, then paste.
 - **Scene:** *Apparent depth* (overall parallax strength), *Scroll speed*,

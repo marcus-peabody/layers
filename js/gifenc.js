@@ -3,8 +3,10 @@
 // GIF (frames advance with scroll). No dependencies.
 
 // frames: [{ data: Uint8ClampedArray RGBA, w, h }] (all the same size)
-function encodeGif(frames, delayCs) {
+function encodeGif(frames, delayCs, colors) {
   const w = frames[0].w, h = frames[0].h;
+  const bits = Math.max(2, Math.min(8, Math.round(Math.log2(colors || 256))));   // palette = 2^bits colours
+  const nCol = 1 << bits;
 
   // Global palette: median cut over a sample of pixels from every frame.
   const sample = [];
@@ -15,7 +17,7 @@ function encodeGif(frames, delayCs) {
   }
   let boxes = [sample];
   const chan = (c, sh) => (c >> sh) & 255;
-  while (boxes.length < 256) {
+  while (boxes.length < nCol) {
     let bi = -1, best = 0, bsh = 16;
     boxes.forEach((b, i) => {
       if (b.length < 2) return;
@@ -37,7 +39,7 @@ function encodeGif(frames, delayCs) {
     const n = b.length || 1;
     return [Math.round(r / n), Math.round(g / n), Math.round(bl / n)];
   });
-  while (pal.length < 256) pal.push([0, 0, 0]);
+  while (pal.length < nCol) pal.push([0, 0, 0]);
 
   // nearest palette entry, cached per 15-bit colour
   const cache = new Int16Array(32768).fill(-1);
@@ -47,7 +49,7 @@ function encodeGif(frames, delayCs) {
     if (v >= 0) return v;
     const rr = (r & 0xf8) | 4, gg = (g & 0xf8) | 4, bb = (b & 0xf8) | 4;
     let bd = 1e9; v = 0;
-    for (let i = 0; i < 256; i++) {
+    for (let i = 0; i < nCol; i++) {
       const p = pal[i], d = (p[0] - rr) * (p[0] - rr) + (p[1] - gg) * (p[1] - gg) + (p[2] - bb) * (p[2] - bb);
       if (d < bd) { bd = d; v = i; }
     }
@@ -58,7 +60,7 @@ function encodeGif(frames, delayCs) {
   const u16 = (v) => out.push(v & 255, (v >> 8) & 255);
   out.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
   u16(w); u16(h);
-  out.push(0xf7, 0, 0);                       // global table, 256 colours
+  out.push(0xf0 | (bits - 1), 0, 0);          // global colour table of 2^bits entries
   for (const p of pal) out.push(p[0], p[1], p[2]);
   out.push(0x21, 0xff, 11);                    // loop forever
   for (const ch of 'NETSCAPE2.0') out.push(ch.charCodeAt(0));
@@ -69,8 +71,8 @@ function encodeGif(frames, delayCs) {
     out.push(0x2c); u16(0); u16(0); u16(w); u16(h); out.push(0);
     const idx = new Uint8Array(w * h);
     for (let i = 0; i < w * h; i++) idx[i] = nearest(f.data[i * 4], f.data[i * 4 + 1], f.data[i * 4 + 2]);
-    out.push(8);
-    const bytes = lzwEncode(idx, 8);
+    out.push(bits);
+    const bytes = lzwEncode(idx, bits);
     for (let i = 0; i < bytes.length; i += 255) {
       const n = Math.min(255, bytes.length - i);
       out.push(n);
@@ -117,7 +119,7 @@ function lzwEncode(idx, minCode) {
 // Turn a short video file into a GIF blob. Samples up to maxFrames frames from
 // the first maxSeconds, scaled so the long side is maxSide.
 async function videoToGif(file, opts) {
-  const o = Object.assign({ maxSide: 320, maxFrames: 40, maxSeconds: 6 }, opts || {});
+  const o = Object.assign({ maxSide: 200, maxFrames: 12, maxSeconds: 4, colors: 64 }, opts || {});
   const url = URL.createObjectURL(file);
   try {
     const v = document.createElement('video');
@@ -129,7 +131,7 @@ async function videoToGif(file, opts) {
     const dur = Math.min(v.duration && isFinite(v.duration) ? v.duration : 1, o.maxSeconds);
     const k = Math.min(1, o.maxSide / Math.max(v.videoWidth, v.videoHeight));
     const w = Math.max(2, Math.round(v.videoWidth * k)), h = Math.max(2, Math.round(v.videoHeight * k));
-    const n = Math.max(2, Math.min(o.maxFrames, Math.round(dur * 10)));
+    const n = Math.max(2, Math.min(o.maxFrames, Math.round(dur * 3)));   // a few frames is plenty: it only steps with scroll
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const x = c.getContext('2d', { willReadFrequently: true });
@@ -141,7 +143,7 @@ async function videoToGif(file, opts) {
       frames.push({ data: x.getImageData(0, 0, w, h).data, w, h });
     }
     const delay = Math.max(2, Math.round(dur / n * 100));
-    return new Blob([encodeGif(frames, delay)], { type: 'image/gif' });
+    return new Blob([encodeGif(frames, delay, o.colors)], { type: 'image/gif' });
   } finally {
     URL.revokeObjectURL(url);
   }

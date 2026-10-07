@@ -230,12 +230,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v22';
+  versionEl.textContent = 'v23';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v22 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v23 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');
