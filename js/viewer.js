@@ -10,15 +10,7 @@ function runViewer(slug) {
   }
 
   // bleed must match the canvas overhang in style.css
-  const engine = CollageEngine(canvas, {
-    // The page itself scrolls (a tall invisible spacer), not an inner box: that
-    // is what lets Safari treat the page as full-screen and draw it under its bars.
-    scroller: document.scrollingElement || document.documentElement,
-    scrollEvents: window,
-    pointerTarget: $('viewerView'),
-    ignoreSelector: '#dock, #panel, #shareMenu',
-    bleed: 160
-  });
+  const engine = CollageEngine(canvas, { scroller: $('scroller'), bleed: 160 });
   engine.onFirstInteract(() => hintEl.classList.add('gone'));
   engine.start();
 
@@ -230,12 +222,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v24';
+  versionEl.textContent = 'v25';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v24 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v25 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');

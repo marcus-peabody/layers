@@ -16,7 +16,6 @@
 
   galleryView.classList.add('gone');
   viewerView.classList.remove('gone');
-  document.documentElement.classList.add('viewer');   // the page itself scrolls in the viewer
 
   const urlToken = params.get('edit');
   window.openEditorOnLoad = params.get('open') === 'editor';

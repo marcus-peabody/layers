@@ -33,15 +33,21 @@ canvas {
   z-index: 0;
 }
 
-/* The page itself scrolls: a huge, empty, invisible spacer gives the document a
-   scroll range. Touch drags, trackpad swipes and wheel scrolling become genuine
-   page scrolling (which is what lets Safari collapse its bars and draw the page
-   edge to edge); collage.js reads the scroll position. Mouse click-and-drag is
-   handled separately. The viewer (fixed) sits on top and never scrolls itself. */
-html.viewer, html.viewer body { height: auto; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
-html.viewer::-webkit-scrollbar, html.viewer body::-webkit-scrollbar { display: none; }
-#spacer { display: none; }
-html.viewer #spacer { display: block; position: absolute; top: 0; left: 0; width: 60000px; height: 60000px; pointer-events: none; }
+/* Real, empty, scrollable element on top of the canvas. Touch drags, trackpad
+   swipes and wheel scrolling become genuine browser scrolling here (which is
+   what lets Safari collapse its chrome); collage.js reads the scroll position
+   each frame. Mouse click-and-drag is handled separately. */
+#scroller {
+  position: absolute;
+  inset: 0;
+  overflow: scroll;
+  -webkit-overflow-scrolling: touch;
+  z-index: 1;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#scroller::-webkit-scrollbar { display: none; }
+#spacer { width: 60000px; height: 60000px; }
 
 #status, #hint, #version {
   position: fixed;
