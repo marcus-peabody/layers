@@ -18,14 +18,43 @@ function forgetEditToken(slug) {
   try { localStorage.removeItem('editToken:' + slug); } catch (e) { /* ignore */ }
 }
 
-// Resolves with a loaded <img>, or rejects with a readable error.
+// When each collage was last opened on this device. The gallery compares this
+// with the newest layer to decide which collages get a "new" dot.
+function markVisited(slug) {
+  try { localStorage.setItem('visited:' + slug, String(Date.now())); } catch (e) { /* ignore */ }
+}
+function getVisited(slug) {
+  try { return Number(localStorage.getItem('visited:' + slug)) || 0; } catch (e) { return 0; }
+}
+
+// Resolves with a loaded <img>, or rejects with a readable error. Asks for CORS
+// access first so the collage canvas can be captured as a gallery cover; if the
+// server refuses that, it loads the plain way (the cover just can't be made).
 function loadImage(src) {
-  return new Promise((resolve, reject) => {
+  const attempt = (cors) => new Promise((resolve, reject) => {
     const img = new Image();
+    if (cors) img.crossOrigin = 'anonymous';
     img.onload = () => (img.naturalWidth ? resolve(img) : reject(new Error('zero-size image: ' + src)));
     img.onerror = () => reject(new Error('could not load ' + src));
     img.src = src;
   });
+  if (/^(blob|data):/.test(src)) return attempt(false);
+  return attempt(true).catch(() => attempt(false));
+}
+
+// A layer's picture: { img } for ordinary images, { img, frames } for an
+// animated GIF (frames advance with scrolling). A GIF that can't be decoded
+// falls back to the plain image.
+async function loadLayerAsset(src) {
+  if (/\.gif(\?|$)/i.test(src) && typeof decodeGif === 'function') {
+    try {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const g = decodeGif(await res.arrayBuffer(), 480, 60);
+      if (g.frames.length > 1) return { img: g.frames[0], frames: g.frames };
+    } catch (e) { /* fall through to the plain image */ }
+  }
+  return { img: await loadImage(src) };
 }
 
 const Backend = (function () {
@@ -88,6 +117,7 @@ const Backend = (function () {
     problem,
 
     publicUrl(path) { return base + '/storage/v1/object/public/layers/' + path; },
+    coverUrl(collageId, version) { return this.publicUrl(collageId + '/cover.jpg') + '?v=' + (version || 0); },
 
     // ---------- collages ----------
     listCollages() {
@@ -113,6 +143,10 @@ const Backend = (function () {
       return rest('layers?select=*&collage_id=eq.' + encodeURIComponent(collageId)
         + '&order=sort_order.asc,created_at.asc' + (activeOnly ? '&active=eq.true' : ''), 'load layers');
     },
+    // Just enough about every visible layer to tell when each collage last grew.
+    listLayerStamps() {
+      return rest('layers?select=collage_id,created_at&active=eq.true', 'load layer dates');
+    },
     async insertLayer(row) {
       const rows = await rest('layers?select=*', 'save layer', 'POST', row, 'return=representation');
       return rows[0];
@@ -126,13 +160,13 @@ const Backend = (function () {
 
     // ---------- files ----------
     // Same request shape the official supabase-js library sends for uploads.
-    uploadFile(path, blob) {
+    uploadFile(path, blob, overwrite) {
       const form = new FormData();
-      form.append('cacheControl', '31536000');
+      form.append('cacheControl', overwrite ? '60' : '31536000');   // covers get replaced, layer files never do
       form.append('', blob);
       return request(base + '/storage/v1/object/layers/' + path, {
         method: 'POST',
-        headers: headers({ 'x-upsert': 'false' }),   // no Content-Type: the browser sets the multipart boundary
+        headers: headers({ 'x-upsert': overwrite ? 'true' : 'false' }),   // no Content-Type: the browser sets the multipart boundary
         body: form
       }, 'upload');
     },

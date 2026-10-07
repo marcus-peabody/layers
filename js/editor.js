@@ -4,24 +4,23 @@
 // collage, hasEditAccess) once, after the viewer has loaded that collage.
 // Does nothing if Supabase isn't configured, there's no specific collage
 // loaded (e.g. the static fallback), or this browser doesn't have edit
-// access to it (no remembered/valid ?edit= token) -- the edit FAB just
-// stays hidden in all of those cases.
+// access to it (no remembered/valid ?edit= token) -- it returns null in all
+// of those cases and the dock simply has no edit button. Otherwise it returns
+// { open, close, isOpen } for the dock to drive.
 function initEditor(engine, collage, hasEditAccess) {
-  if (Backend.problem || !Backend.configured || !collage || !hasEditAccess) return;
+  if (Backend.problem || !Backend.configured || !collage || !hasEditAccess) return null;
 
   const $ = (id) => document.getElementById(id);
-  const fab = $('editFab');
   const panel = $('panel');
   const msgEl = $('msg');
   const listEl = $('list');
-
-  fab.classList.remove('gone');
 
   let items = [];   // [{ row, img, layer, failed }] in draw order (last = in front)
   // The collage row already carries its own settings -- no extra fetch needed.
   let settings = Object.assign({ tilt_sensitivity: 0.5 }, collage);
   let editing = false;
   let loaded = false;
+  let dirty = false;   // something changed since the gallery cover was last captured
 
   // ---------- small helpers ----------
   function el(tag, props, ...kids) {
@@ -52,7 +51,7 @@ function initEditor(engine, collage, hasEditAccess) {
     flashTimer = setTimeout(() => { if (msgEl.textContent === 'Saved') say(''); }, 1200);
   }
   async function save(fn) {
-    try { await fn(); flashSaved(); }
+    try { await fn(); dirty = true; markVisited(collage.slug); flashSaved(); }
     catch (e) { say('Not saved -- ' + e.message, 'error'); }
   }
 
@@ -68,11 +67,31 @@ function initEditor(engine, collage, hasEditAccess) {
   // ---------- layers ----------
   async function makeItem(row) {
     const item = { row, img: null, failed: false };
-    try { item.img = await loadImage(Backend.publicUrl(row.storage_path)); }
-    catch (e) { item.failed = true; }
-    item.layer = { img: item.img, depth: row.depth, scale: row.scale, opacity: 1, seed: layerSeed(row.id) };
+    let frames = null;
+    try {
+      const a = await loadLayerAsset(Backend.publicUrl(row.storage_path));
+      item.img = a.img; frames = a.frames || null;
+    } catch (e) { item.failed = true; }
+    item.layer = { img: item.img, frames, depth: row.depth, scale: row.scale, opacity: 1, seed: layerSeed(row.id) };
     return item;
   }
+
+  // Front layers move fastest, so depth must rise along the stack. Reassigns
+  // the existing depth values (and sort order) to match the current order and
+  // returns the items that changed so the caller can save them.
+  function restack() {
+    const depths = depthsInStackOrder(items.map((i) => i.row.depth));
+    const changed = [];
+    items.forEach((it, k) => {
+      let c = false;
+      if (it.row.depth !== depths[k]) { it.row.depth = depths[k]; it.layer.depth = depths[k]; c = true; }
+      if (it.row.sort_order !== k) { it.row.sort_order = k; c = true; }
+      if (c) changed.push(it);
+    });
+    return changed;
+  }
+  const saveStack = (changed) => save(() => Promise.all(changed.map((it) =>
+    Backend.updateLayer(it.row.id, { depth: it.row.depth, sort_order: it.row.sort_order }))));
 
   // While editing, hidden layers still show (dimmed) so you can see what
   // you're toggling. Closed, it's exactly what a visitor sees: active only.
@@ -90,13 +109,10 @@ function initEditor(engine, collage, hasEditAccess) {
     const j = idx + dir;
     if (j < 0 || j >= items.length) return;
     [items[idx], items[j]] = [items[j], items[idx]];
-    const changed = [];
-    items.forEach((it, k) => {
-      if (it.row.sort_order !== k) { it.row.sort_order = k; changed.push(it); }
-    });
+    const changed = restack();
     renderList();
     refreshPreview();
-    save(() => Promise.all(changed.map((it) => Backend.updateLayer(it.row.id, { sort_order: it.row.sort_order }))));
+    saveStack(changed);
   }
 
   async function remove(item) {
@@ -137,9 +153,14 @@ function initEditor(engine, collage, hasEditAccess) {
         slider('Size', 0.2, 4, 0.05, row.scale,
           (v) => { row.scale = v; item.layer.scale = v; refreshPreview(); },
           (v) => save(() => Backend.updateLayer(row.id, { scale: v }))),
-        slider('Depth', 0.1, 2.5, 0.05, row.depth,
+        // A layer can only sit between the depths of its neighbours, so the
+        // front of the stack is always the fastest-moving.
+        slider('Depth (closer = faster)',
+          idx > 0 ? items[idx - 1].row.depth : 0.1,
+          idx < items.length - 1 ? items[idx + 1].row.depth : 2.5,
+          0.05, row.depth,
           (v) => { row.depth = v; item.layer.depth = v; refreshPreview(); },
-          (v) => save(() => Backend.updateLayer(row.id, { depth: v })))),
+          (v) => { save(() => Backend.updateLayer(row.id, { depth: v })); renderList(); })),
       el('div', { class: 'btns' },
         el('button', { class: 'btn', type: 'button', title: 'Bring forward', 'aria-label': 'Bring forward', ...(atFront ? { disabled: '' } : {}), onclick: () => move(idx, +1) }, '^'),
         el('button', { class: 'btn', type: 'button', title: 'Send back', 'aria-label': 'Send back', ...(atBack ? { disabled: '' } : {}), onclick: () => move(idx, -1) }, 'v'),
@@ -193,7 +214,7 @@ function initEditor(engine, collage, hasEditAccess) {
         collage_id: collage.id,
         name: file.name,
         storage_path: path,
-        depth: +(0.3 + Math.random() * 1.5).toFixed(2),
+        depth: +Math.min(2.5, (items.length ? Math.max(...items.map((i) => i.row.depth)) : 0.3) + 0.2).toFixed(2),
         scale: 2.5,
         active: true,
         sort_order: items.length ? Math.max(...items.map((i) => i.row.sort_order)) + 1 : 0
@@ -281,6 +302,8 @@ function initEditor(engine, collage, hasEditAccess) {
       buildScene();
       const rows = await Backend.listLayers(collage.id, false);
       items = await Promise.all(rows.map(makeItem));
+      const changed = restack();   // old collages may have depths that ignore stacking
+      if (changed.length) saveStack(changed);
       renderList();
       const failed = items.filter((i) => i.failed).length;
       say(failed ? failed + ' image(s) could not be loaded.' : '');
@@ -289,20 +312,44 @@ function initEditor(engine, collage, hasEditAccess) {
     }
   }
 
+  // The gallery thumbnail: a 4:5 crop of the live canvas, saved next to the
+  // layer files. Taken only when the editor is closed (so hidden layers are
+  // really hidden) and only when something changed.
+  async function updateCover() {
+    dirty = false;
+    try {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const src = $('canvas');
+      if (!src.width || !src.height) return;
+      const cw = Math.min(src.width, src.height * 0.8), ch = cw / 0.8;
+      const c = document.createElement('canvas');
+      c.width = 480; c.height = 600;
+      const x = c.getContext('2d');
+      x.fillStyle = '#0e0e10';
+      x.fillRect(0, 0, 480, 600);
+      x.drawImage(src, (src.width - cw) / 2, (src.height - ch) / 2, cw, ch, 0, 0, 480, 600);
+      const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.82));
+      if (blob) await Backend.uploadFile(collage.id + '/cover.jpg', blob, true);
+    } catch (e) { /* tainted canvas or network: the gallery just shows a placeholder */ }
+  }
+
+  // First visit with edit access to a collage that has no cover yet.
+  fetch(Backend.coverUrl(collage.id, 0), { method: 'HEAD' })
+    .then((res) => { if (!res.ok) setTimeout(updateCover, 4000); })
+    .catch(() => {});
+
   async function open() {
     panel.classList.remove('hidden');
-    fab.classList.add('on');
     await ensureLoaded();
     editing = true;
     refreshPreview();
   }
   function close() {
     panel.classList.add('hidden');
-    fab.classList.remove('on');
     editing = false;
     refreshPreview();
+    if (dirty) updateCover();
   }
 
-  fab.addEventListener('click', () => { (panel.classList.contains('hidden') ? open() : close()); });
-  $('closePanel').addEventListener('click', close);
+  return { open, close, isOpen: () => !panel.classList.contains('hidden') };
 }

@@ -1,25 +1,27 @@
 function runViewer(slug) {
-  const canvas = document.getElementById('canvas');
-  const statusEl = document.getElementById('status');
-  const hintEl = document.getElementById('hint');
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('canvas');
+  const statusEl = $('status');
+  const hintEl = $('hint');
 
   function say(msg, isError) {
     statusEl.textContent = msg;
     statusEl.className = isError ? 'error' : '';
   }
 
-  const engine = CollageEngine(canvas, { scroller: document.getElementById('scroller') });
+  const engine = CollageEngine(canvas, { scroller: $('scroller') });
   engine.onFirstInteract(() => hintEl.classList.add('gone'));
   engine.start();
 
   // ---- the two places the layers can come from ----
   async function fromSupabase(collage) {
     const rows = await Backend.listLayers(collage.id, true);
+    const depths = depthsInStackOrder(rows.map((r) => r.depth));   // front = fastest
     return {
       settings: { depthScale: collage.depth_scale, speed: collage.speed, density: collage.density, tiltSensitivity: collage.tilt_sensitivity },
-      defs: rows.map((r) => ({
+      defs: rows.map((r, i) => ({
         url: Backend.publicUrl(r.storage_path),
-        depth: r.depth,
+        depth: depths[i],
         scale: r.scale,
         seed: layerSeed(r.id)
       }))
@@ -45,13 +47,14 @@ function runViewer(slug) {
   // Fetch a source, then load every image in it.
   async function load(source) {
     const { settings, defs } = await source();
-    const results = await Promise.allSettled(defs.map((d) => loadImage(d.url)));
+    const results = await Promise.allSettled(defs.map((d) => loadLayerAsset(d.url)));
     const layers = [];
     const failures = [];
     results.forEach((r, i) => {
       if (r.status === 'fulfilled') {
         layers.push({
-          img: r.value,
+          img: r.value.img,
+          frames: r.value.frames || null,
           depth: defs[i].depth ?? 1,
           scale: defs[i].scale ?? 1,
           opacity: defs[i].opacity ?? 1,
@@ -66,7 +69,6 @@ function runViewer(slug) {
 
   say('Loading...');
   const problems = [];   // things that went wrong (shown in red)
-  let info = '';         // things that are merely worth knowing
   let result = null;
   let source = 'static';
   let collage = null;
@@ -108,76 +110,118 @@ function runViewer(slug) {
       say(problems.join('\n'), true);
     }
 
-    const galleryLink = document.getElementById('galleryLink');
-    if (galleryLink && Backend.configured) {
-      galleryLink.href = location.pathname;
-      galleryLink.classList.remove('gone');
-    }
-
     const hasEditAccess = !!getRememberedEditToken(slug);
-    if (typeof initEditor === 'function' && collage) initEditor(engine, collage, hasEditAccess);
-    setupShare(collage, hasEditAccess);
+    const editor = (typeof initEditor === 'function' && collage) ? initEditor(engine, collage, hasEditAccess) : null;
+    if (collage) {
+      markVisited(slug);
+      // Also when leaving, so layers added during this visit don't show up as "new".
+      window.addEventListener('pagehide', () => markVisited(slug));
+    }
+    setupDock(collage, hasEditAccess, editor);
   })();
 
-  // ---- share button: read-only link always, collaborate link only if this
-  // browser already has edit access (otherwise we don't have the token) ----
-  function setupShare(collage, hasEditAccess) {
-    const btn = document.getElementById('shareBtn');
-    if (!btn || !collage) return;
-    btn.classList.remove('gone');
+  // ---- the settings dock: one round button that opens into a pill of actions ----
+  function setupDock(collage, hasEditAccess, editor) {
+    const dock = $('dock'), toggle = $('dToggle'), menu = $('shareMenu');
 
-    function linkFor(withEdit) {
-      const u = new URL(location.href);
-      u.search = '';
-      u.searchParams.set('c', slug);
-      if (withEdit) u.searchParams.set('edit', getRememberedEditToken(slug));
-      return u.toString();
+    function setOpen(open) {
+      dock.classList.toggle('open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      if (!open) menu.classList.add('hidden');
+    }
+    function syncToggleLabel() {
+      toggle.setAttribute('aria-label', dock.classList.contains('open') || dock.classList.contains('editing') ? 'Close' : 'Settings');
     }
 
-    async function copy(text, label) {
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
-        else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
-        say(label + ' copied to clipboard'); setTimeout(() => statusEl.classList.add('gone'), 2000);
-        statusEl.classList.remove('gone');
-      } catch (e) { say('Could not copy: ' + e.message, true); }
+    // The one button on the right: gear -> X. While the editor is open it is
+    // the editor's close button, in exactly the same spot.
+    toggle.addEventListener('click', () => {
+      if (editor && editor.isOpen()) { editor.close(); dock.classList.remove('editing'); }
+      else setOpen(!dock.classList.contains('open'));
+      syncToggleLabel();
+    });
+
+    // all collages
+    if (Backend.configured) {
+      const all = $('dMenu');
+      all.href = location.pathname;
+      all.classList.remove('gone');
+      all.addEventListener('click', () => markVisited(slug));
     }
 
-    const menu = document.getElementById('shareMenu');
-    btn.addEventListener('click', () => menu.classList.toggle('hidden'));
-    document.getElementById('shareReadOnly').addEventListener('click', () => { menu.classList.add('hidden'); copy(linkFor(false), 'Read-only link'); });
-    const collabBtn = document.getElementById('shareCollab');
-    if (hasEditAccess) {
-      collabBtn.classList.remove('gone');
-      collabBtn.addEventListener('click', () => { menu.classList.add('hidden'); copy(linkFor(true), 'Collaborate link'); });
+    // edit
+    if (editor) {
+      const btn = $('dEdit');
+      btn.classList.remove('gone');
+      btn.addEventListener('click', () => {
+        setOpen(false);
+        dock.classList.add('editing');
+        syncToggleLabel();
+        editor.open();
+      });
+    }
+
+    // share: read-only link always, collaborate link only if this browser
+    // already has edit access (otherwise we don't have the token)
+    if (collage) {
+      $('dShare').classList.remove('gone');
+
+      function linkFor(withEdit) {
+        const u = new URL(location.href);
+        u.search = '';
+        u.hash = '';
+        u.searchParams.set('c', slug);
+        if (withEdit) u.searchParams.set('edit', getRememberedEditToken(slug));
+        return u.toString();
+      }
+      async function copy(text, label) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+          else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+          statusEl.classList.remove('gone');
+          say(label + ' copied to clipboard');
+          setTimeout(() => statusEl.classList.add('gone'), 2000);
+        } catch (e) { say('Could not copy: ' + e.message, true); }
+      }
+
+      $('dShare').addEventListener('click', () => menu.classList.toggle('hidden'));
+      $('shareReadOnly').addEventListener('click', () => { menu.classList.add('hidden'); copy(linkFor(false), 'Read-only link'); });
+      if (hasEditAccess) {
+        const collabBtn = $('shareCollab');
+        collabBtn.classList.remove('gone');
+        collabBtn.addEventListener('click', () => { menu.classList.add('hidden'); copy(linkFor(true), 'Collaborate link'); });
+      }
+    }
+
+    // tilt (phones only)
+    if ('ontouchstart' in window && engine.tiltSupported) {
+      const btn = $('dTilt');
+      btn.classList.remove('gone');
+      btn.addEventListener('click', async () => {
+        if (engine.isTiltEnabled()) {
+          engine.disableTilt();
+          btn.classList.remove('on');
+        } else {
+          const ok = await engine.enableTilt();
+          if (ok) btn.classList.add('on');
+          else say('Tilt permission denied -- check Settings -> Safari -> Motion & Orientation Access.', true);
+        }
+      });
     }
   }
 
-  const versionEl = document.getElementById('version');
-  if (versionEl) {
+  // Version marker top-right. Add ?debug to the address for live screen sizes.
+  const versionEl = $('version');
+  const debug = /[?&]debug\b/.test(location.search);
+  versionEl.textContent = 'v12';
+  if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v11 - canvas ' + Math.round(r.width) + '\u00d7' + Math.round(r.height)
-        + ' - screen ' + window.screen.width + '\u00d7' + window.screen.height
-        + ' - inner ' + window.innerWidth + '\u00d7' + window.innerHeight
-        + (vv ? ' - vv ' + Math.round(vv.width) + '\u00d7' + Math.round(vv.height) : '');
+      versionEl.textContent = 'v12 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+        + ' - screen ' + window.screen.width + 'x' + window.screen.height
+        + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
+        + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');
     }, 500);
-  }
-
-  const tiltBtn = document.getElementById('tiltBtn');
-  if ('ontouchstart' in window && engine.tiltSupported) {
-    tiltBtn.classList.remove('gone');
-    tiltBtn.addEventListener('click', async () => {
-      if (engine.isTiltEnabled()) {
-        engine.disableTilt();
-        tiltBtn.textContent = 'Enable tilt';
-        tiltBtn.classList.remove('on');
-      } else {
-        const ok = await engine.enableTilt();
-        if (ok) { tiltBtn.textContent = 'Tilt on'; tiltBtn.classList.add('on'); }
-        else say('Tilt permission denied -- check Settings -> Safari -> Motion & Orientation Access.', true);
-      }
-    });
   }
 }

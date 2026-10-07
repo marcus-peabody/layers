@@ -4,9 +4,12 @@ An infinite, panning parallax collage made from transparent PNGs. Drag (touch or
 mouse) or scroll to explore. Layers with a higher `depth` sweep past faster and
 read as closer.
 
-It's a single page, `index.html`. The round button bottom-right opens the
-editor in place, right on top of the live piece -- there's no separate page to
-edit on, and no separate preview to keep in sync with the real thing.
+It's a single page, `index.html`. A round settings button bottom-right opens
+into a pill: share, edit, tilt (phones) and all collages, with an X to close it.
+Edit opens the editor in place, right on top of the live piece -- there's no
+separate page to edit on, and no separate preview to keep in sync with the real
+thing. The bare site address shows a gallery of all collages (4:5 covers, two
+columns; a red dot marks collages that gained layers since you last opened them).
 
 The page reads layers from Supabase, and **falls back to the static images in
 `manifest.json`** if Supabase is empty, unreachable, or not configured. So the
@@ -20,11 +23,13 @@ index.html        the viewer + in-situ editor
 manifest.json     the static fallback set (settings + list of layers)
 images/01-08.png  the static test images
 css/style.css     viewer styles
-css/editor.css    editor panel + edit button styles
+css/editor.css    editor panel styles
+css/gallery.css   gallery grid styles
 js/collage.js     the parallax engine (no dependencies)
 js/backend.js     tiny Supabase client using plain fetch (no library, no CDN)
 js/config.js      YOUR Supabase URL + public key go here
-js/viewer.js      loads the piece, panning, tilt
+js/viewer.js      loads the piece, the settings dock (share, edit, tilt, menu)
+js/gif.js         tiny GIF decoder: animated GIFs advance as you scroll
 js/editor.js      the in-situ editor (upload, reorder, scene settings)
 SUPABASE-SETUP.md how the Supabase side is set up
 ```
@@ -50,21 +55,24 @@ Blank config = static site only, and the edit button stays hidden.
 
 ## Using the editor
 
-Tap the round button bottom-right to open it; tap Close (or the button again)
-to leave. It overlays the live collage rather than replacing it, so on desktop
+Tap the round button bottom-right, then the pencil. The same spot becomes an X
+that closes the editor. It overlays the live collage rather than replacing it, so on desktop
 you can keep seeing (and panning) the piece beside the panel; on a phone the
 panel takes the full screen while open, but closing it shows the real,
 already-updated result immediately.
 
 - **Add images:** tap the box (phone) or drop files on it (desktop). Anything
   larger than 1200px is shrunk before upload so the viewer stays fast. GIFs are
-  left untouched so animation survives.
+  left untouched; in the collage a GIF steps through its frames as you scroll
+  (it doesn't play by itself).
 - **Paste a sticker:** copy a subject cut out in Photos, tap the "Tap here to
   paste stickers" box, then paste.
 - **Scene:** *Apparent depth* (overall parallax strength), *Scroll speed*,
   *Density* (bigger = images further apart), *Tilt sensitivity*.
 - **Layers:** the list shows the front-most layer first. Per layer: *Size*,
-  *Depth* (how fast it moves: small = far/slow, large = near/fast), show/hide,
+  *Depth* (how fast it moves: small = far/slow, large = near/fast; a layer can
+  only sit between the depths of the layers behind and in front of it, so the
+  front is always fastest), show/hide,
   bring forward (^), send back (v), delete (x). Hidden layers still show,
   dimmed, while editing, so you can see what you're toggling.
 - Sliders update the live piece as you drag and save when you let go. A green

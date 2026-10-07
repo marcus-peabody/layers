@@ -23,22 +23,45 @@ function runGallery() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
   }
 
-  function row(c) {
+  // One 4:5 tile per collage: its cover image, then its name. A red dot before
+  // the name means layers were added since this device last opened it.
+  function tile(c, newest) {
     const el = document.createElement('div');
     el.className = 'collage-row';
     const canEdit = !!getRememberedEditToken(c.slug);
     const link = '?c=' + encodeURIComponent(c.slug);
-    const when = c.created_at ? new Date(c.created_at).toLocaleDateString() : '';
+    const isNew = newest > getVisited(c.slug);
 
-    el.innerHTML =
-      '<a class="collage-title" href="' + link + '">' + escapeHtml(c.title || c.slug) + '</a>' +
-      '<span class="collage-meta">' + when + (canEdit ? ' - you can edit this' : '') + '</span>';
+    const cover = document.createElement('a');
+    cover.className = 'cover';
+    cover.href = link;
+    const img = document.createElement('img');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.addEventListener('error', () => img.remove());   // no cover yet: the empty tile stays
+    img.src = Backend.coverUrl(c.id, newest);
+    cover.appendChild(img);
+    el.appendChild(cover);
 
-    const btns = document.createElement('div');
-    btns.className = 'collage-btns';
+    const name = document.createElement('a');
+    name.className = 'collage-title';
+    name.href = link;
+    if (isNew) {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.title = 'New since your last visit';
+      name.appendChild(dot);
+    }
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = c.title || c.slug;
+    name.appendChild(label);
+    el.appendChild(name);
+
     if (canEdit) {
       const del = document.createElement('button');
       del.type = 'button'; del.className = 'btn del'; del.textContent = 'x'; del.title = 'Delete collage';
+      del.setAttribute('aria-label', 'Delete collage');
       del.addEventListener('click', async () => {
         if (!window.confirm('Delete "' + (c.title || c.slug) + '" and all its images? This can\'t be undone.')) return;
         say('Deleting...');
@@ -50,25 +73,26 @@ function runGallery() {
           say('Could not delete: ' + e.message, 'error');
         }
       });
-      btns.appendChild(del);
+      el.appendChild(del);
     }
-    el.appendChild(btns);
     return el;
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   async function load() {
     say('Loading...');
     try {
-      const collages = await Backend.listCollages();
+      const [collages, stamps] = await Promise.all([
+        Backend.listCollages(),
+        Backend.listLayerStamps().catch(() => [])   // only used for the "new" dot
+      ]);
+      // When did each collage last grow? (its newest layer, else its creation)
+      const newestOf = {};
+      for (const l of stamps) newestOf[l.collage_id] = Math.max(newestOf[l.collage_id] || 0, Date.parse(l.created_at) || 0);
       listEl.textContent = '';
       if (!collages.length) {
         listEl.appendChild(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'No collages yet.' }));
       } else {
-        collages.forEach((c) => listEl.appendChild(row(c)));
+        collages.forEach((c) => listEl.appendChild(tile(c, newestOf[c.id] || Date.parse(c.created_at) || 0)));
       }
       say('');
     } catch (e) {
@@ -106,4 +130,6 @@ function runGallery() {
     return;
   }
   load();
+  // Coming back with the browser's back button restores the old page: refresh it.
+  window.addEventListener('pageshow', (e) => { if (e.persisted) load(); });
 }

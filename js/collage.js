@@ -4,7 +4,10 @@
 // jittered grid of its image. Panning moves every layer by (pan * depth), so
 // higher-depth layers sweep past faster and read as closer.
 //
-//   layer = { img, depth, scale, opacity, seed }
+//   layer = { img, depth, scale, opacity, seed, frames? }
+//
+// If a layer has `frames` (an animated GIF, decoded to canvases), the frame
+// shown depends on how far you have scrolled, not on time.
 //
 // opts.scroller (optional): a real, empty, overflow:scroll element the same
 // size as the canvas. When given, touch drags and wheel/trackpad scrolling
@@ -14,6 +17,8 @@
 // scrolling doesn't respond to mouse drags, so that path stays exactly as it
 // was. Without opts.scroller, everything (touch, mouse, wheel) falls back to
 // the original simulated panning on the canvas itself.
+const GIF_PX_PER_FRAME = 24;   // scroll distance that advances a GIF layer by one frame
+
 function CollageEngine(canvas, opts) {
   opts = opts || {};
   const scroller = opts.scroller || null;
@@ -156,7 +161,7 @@ function CollageEngine(canvas, opts) {
       tiltY = (tilt.beta - tilt.baseBeta) * s * 6;
     }
     for (const l of layers) {
-      const iw = l.img.naturalWidth, ih = l.img.naturalHeight;
+      const iw = l.img.naturalWidth || l.img.width, ih = l.img.naturalHeight || l.img.height;
       if (!iw || !ih) continue;
 
       // Fit to ~260px on the long side, then apply the layer's own scale.
@@ -177,6 +182,13 @@ function CollageEngine(canvas, opts) {
       const j1 = Math.ceil((camY - phaseY + H + dh) / cell) + 1;
       const margin = Math.max(dw, dh);
 
+      let src = l.img;
+      if (l.frames && l.frames.length > 1) {
+        const n = l.frames.length;
+        const k = Math.floor((camX + camY) / GIF_PX_PER_FRAME) + l.seed;
+        src = l.frames[((k % n) + n) % n];
+      }
+
       ctx.globalAlpha = l.opacity;
       for (let i = i0; i <= i1; i++) {
         for (let j = j0; j <= j1; j++) {
@@ -189,7 +201,7 @@ function CollageEngine(canvas, opts) {
           ctx.save();
           ctx.translate(sx, sy);
           ctx.rotate(rot);
-          ctx.drawImage(l.img, -dw / 2, -dh / 2, dw, dh);
+          ctx.drawImage(src, -dw / 2, -dh / 2, dw, dh);
           ctx.restore();
         }
       }
@@ -240,4 +252,11 @@ function layerSeed(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return (h % 9973) + 1;
+}
+
+// Front layers must move fastest (close things sweep past, far things drift).
+// Given layer depths listed back-to-front, return them sorted so each layer is
+// at least as deep as the one behind it. Used wherever depths are loaded.
+function depthsInStackOrder(depths) {
+  return depths.slice().sort((a, b) => a - b);
 }

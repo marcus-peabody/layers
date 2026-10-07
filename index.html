@@ -29,35 +29,53 @@
   <canvas id="canvas"></canvas>
   <div id="status"></div>
   <div id="hint">Drag or scroll to explore</div>
-  <a id="galleryLink" class="gone" href="/" title="All collages">All collages</a>
-  <button id="tiltBtn" class="gone" type="button">Enable tilt</button>
-  <div id="version">v11</div>
+  <div id="version">v12</div>
 
-  <button id="shareBtn" class="gone" type="button" aria-label="Share" title="Share">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-         stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="18" cy="5" r="3"></circle>
-      <circle cx="6" cy="12" r="3"></circle>
-      <circle cx="18" cy="19" r="3"></circle>
-      <line x1="8.6" y1="10.6" x2="15.4" y2="6.4"></line>
-      <line x1="8.6" y1="13.4" x2="15.4" y2="17.6"></line>
-    </svg>
-  </button>
   <div id="shareMenu" class="hidden">
     <button id="shareReadOnly" type="button">Copy read-only link</button>
     <button id="shareCollab" class="gone" type="button">Copy collaborate link</button>
   </div>
 
-  <button id="editFab" class="gone" type="button" aria-label="Edit" title="Edit">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
-         stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 20h9"></path>
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-    </svg>
-  </button>
+  <!-- One round button (gear). Tapped, it opens into a pill: share, edit, tilt,
+       all collages, and the same button turned into an X to close it again.
+       While the editor is open the X closes the editor, in the same spot. -->
+  <div id="dock">
+    <div id="dockActions">
+      <button id="dShare" class="gone" type="button" aria-label="Share" title="Share">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.6" y1="10.6" x2="15.4" y2="6.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"></line>
+        </svg>
+      </button>
+      <button id="dEdit" class="gone" type="button" aria-label="Edit" title="Edit">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+        </svg>
+      </button>
+      <button id="dTilt" class="gone" type="button" aria-label="Tilt" title="Tilt">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>
+        </svg>
+      </button>
+      <a id="dMenu" class="gone" href="./" aria-label="All collages" title="All collages">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      </a>
+    </div>
+    <button id="dToggle" type="button" aria-label="Settings" aria-expanded="false">
+      <svg class="i-gear" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+      <svg class="i-x" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
 
   <aside id="panel" class="hidden">
-    <button id="closePanel" type="button" aria-label="Close editor">Close</button>
     <div id="msg"></div>
 
     <h2>Add images</h2>
@@ -76,6 +94,7 @@
 </div>
 
 <script src="js/collage.js"></script>
+<script src="js/gif.js"></script>
 <script src="js/config.js"></script>
 <script src="js/backend.js"></script>
 <script src="js/gallery.js"></script>

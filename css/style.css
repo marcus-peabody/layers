@@ -1,37 +1,44 @@
+:root {
+  --panel: #17171a;
+  --line: #2a2a2e;
+  --text: #e7e7ea;
+  --muted: #8d8d95;
+  --accent: #e8b04b;
+  --bad: #e28a7a;
+}
+
 html, body {
   margin: 0;
   height: 100%;
-  height: 100lvh;
   background: #0e0e10;
   overflow: hidden;
   overscroll-behavior: none;
-  position: relative;   /* a real, correctly-sized containing block for the canvas below */
 }
 
+/* Everything in the viewer is fixed to the screen. */
+#viewerView { position: fixed; inset: 0; }
+
+/* The canvas is deliberately LARGER than the screen and spills off every edge.
+   Safari paints page content underneath its status bar and toolbars, but only
+   if something is there; a canvas the exact size of the layout viewport leaves
+   those bands empty. The collage is an endless pattern, so the extra is free. */
 canvas {
-  /* Deliberately NOT position:fixed: iOS Safari has a long-standing bug where a
-     fixed element sized with viewport units (vh/dvh/lvh -- any of them) stays
-     bound to the toolbar-reduced visual viewport, no matter which unit is used.
-     Absolute, inside the sized+positioned <body> above, avoids that bug. */
   position: absolute;
-  top: 0;
-  left: 0;
+  top: -240px;
+  left: -240px;
+  width: calc(100% + 480px);
+  height: calc(100% + 480px);
   display: block;
-  width: 100%;
-  height: 100%;
   z-index: 0;
 }
 
 /* Real, empty, scrollable element on top of the canvas. Touch drags, trackpad
    swipes and wheel scrolling become genuine browser scrolling here (which is
-   what lets Safari auto-hide its chrome); collage.js reads the scroll position
+   what lets Safari collapse its chrome); collage.js reads the scroll position
    each frame. Mouse click-and-drag is handled separately. */
 #scroller {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   overflow: scroll;
   -webkit-overflow-scrolling: touch;
   z-index: 1;
@@ -49,13 +56,11 @@ canvas {
   pointer-events: none;
   transition: opacity 0.5s;
 }
-
 #status {
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 14px;
   right: 14px;
 }
-
 #status.error {
   color: #e28a7a;
   background: rgba(0, 0, 0, 0.6);
@@ -63,40 +68,101 @@ canvas {
   border-radius: 6px;
   white-space: pre-wrap;
 }
-
 #hint {
   left: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
-
 #version {
   right: 14px;
-  left: 14px;
-  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  top: calc(12px + env(safe-area-inset-top, 0px));
   text-align: right;
-  opacity: 0.6;
+  opacity: 0.45;
 }
 
 .gone { opacity: 0; }
+/* Things that start hidden must also be out of layout and not tappable. */
+#viewerView.gone, #galleryView.gone, #dockActions .gone, #shareCollab.gone { display: none; }
 
-/* Elements that start hidden must also be non-interactive and out of layout. */
-#viewerView.gone, #galleryView.gone, #editFab.gone, #shareBtn.gone,
-#shareCollab.gone, #tiltBtn.gone, #galleryLink.gone { display: none; }
-
-#tiltBtn {
+/* ---- settings dock: round gear button that opens into a pill ---- */
+#dock {
   position: fixed;
-  z-index: 2;
-  right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-  font: 12px ui-monospace, Menlo, monospace;
-  color: #8d8d95;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid #2a2a2e;
-  border-radius: 8px;
-  padding: 7px 12px;
-  transition: opacity 0.3s;
+  z-index: 8;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  height: 52px;
+  box-sizing: border-box;
+  border-radius: 26px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
-#tiltBtn.on { color: #e8b04b; border-color: #e8b04b; }
+#dockActions {
+  display: flex;
+  overflow: hidden;
+  max-width: 0;
+  transition: max-width 0.25s ease;
+}
+#dock.open #dockActions { max-width: 280px; }
+#dockActions > * {
+  flex: none;
+  width: 48px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#dockActions > .on { color: var(--accent); }
+#dToggle {
+  flex: none;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#dToggle .i-x { display: none; }
+#dock.open #dToggle .i-gear, #dock.editing #dToggle .i-gear { display: none; }
+#dock.open #dToggle .i-x, #dock.editing #dToggle .i-x { display: block; }
+#dock.editing #dockActions { max-width: 0; }
 
-/* The viewer wrapper must fill the screen, or #scroller (height:100%) collapses to 0 and touch panning dies. */
-#viewerView { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#shareMenu {
+  position: fixed;
+  z-index: 8;
+  right: 16px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+}
+#shareMenu.hidden { display: none; }
+#shareMenu button {
+  padding: 12px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+#shareMenu button:last-child { border-bottom: none; }
+#shareMenu button:hover { background: #202024; }
