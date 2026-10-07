@@ -73,7 +73,7 @@ already-updated result immediately.
 - **Layers:** the list shows the front-most layer first. Per layer: *Size*, show/hide,
   bring forward (^), send back (v), delete (x). Hidden layers still show,
   dimmed, while editing, so you can see what you're toggling.
-- Sliders update the live piece as you drag and save when you let go. A green
+- All sliders run 1-10. They update the live piece as you drag and save when you let go. A green
   "Saved" or a red error appears at the top of the panel.
 
 ## Static fallback

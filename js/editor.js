@@ -55,12 +55,16 @@ function initEditor(engine, collage, hasEditAccess) {
     catch (e) { say('Not saved -- ' + e.message, 'error'); }
   }
 
+  // Every slider shows a plain 1-10 scale; the real value it controls (and what
+  // is saved) is mapped linearly from min..max, so behaviour is unchanged.
   function slider(label, min, max, step, value, onInput, onChange) {
-    const out = el('span', { class: 'val' }, fmt(value));
-    const input = el('input', { type: 'range', min, max, step });
-    input.value = String(value);
-    input.addEventListener('input', () => { const v = parseFloat(input.value); out.textContent = fmt(v); onInput(v); });
-    input.addEventListener('change', () => onChange(parseFloat(input.value)));
+    const toScale = (v) => Math.max(1, Math.min(10, 1 + 9 * (v - min) / (max - min)));
+    const toValue = (x) => +(min + (x - 1) / 9 * (max - min)).toFixed(4);
+    const out = el('span', { class: 'val' }, toScale(value).toFixed(1));
+    const input = el('input', { type: 'range', min: 1, max: 10, step: 0.1 });
+    input.value = String(toScale(value));
+    input.addEventListener('input', () => { const x = parseFloat(input.value); out.textContent = x.toFixed(1); onInput(toValue(x)); });
+    input.addEventListener('change', () => onChange(toValue(parseFloat(input.value))));
     return el('label', { class: 'slider' }, el('span', { class: 'lab' }, label, out), input);
   }
 
