@@ -18,9 +18,11 @@
   viewerView.classList.remove('gone');
 
   const urlToken = params.get('edit');
-  if (urlToken) {
-    rememberEditToken(slug, urlToken);
+  window.openEditorOnLoad = params.get('open') === 'editor';
+  if (urlToken) rememberEditToken(slug, urlToken);
+  if (urlToken || params.has('open')) {
     params.delete('edit');
+    params.delete('open');
     const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
     try { history.replaceState(null, '', clean); } catch (e) { /* token is remembered regardless; a tidy URL is a bonus */ }
   }

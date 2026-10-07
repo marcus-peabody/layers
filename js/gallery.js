@@ -112,7 +112,8 @@ function runGallery() {
         depth_scale: 1, speed: 1, density: 1.2, tilt_sensitivity: 0.5
       });
       rememberEditToken(slug, token);
-      location.href = '?c=' + encodeURIComponent(c.slug) + '&edit=' + encodeURIComponent(token);
+      // open=editor: land straight in the editor panel, not on the collage
+      location.href = '?c=' + encodeURIComponent(c.slug) + '&edit=' + encodeURIComponent(token) + '&open=editor';
     } catch (e) {
       say('Could not create collage: ' + e.message, 'error');
     }

@@ -118,6 +118,7 @@ function runViewer(slug) {
       window.addEventListener('pagehide', () => markVisited(slug));
     }
     setupDock(collage, hasEditAccess, editor);
+    if (editor && window.openEditorOnLoad) $('dEdit').click();   // just created: go straight to the editor
   })();
 
   // ---- the settings dock: one round button that opens into a pill of actions ----
