@@ -22,6 +22,11 @@ const GIF_PX_PER_FRAME = 24;   // scroll distance that advances a GIF layer by o
 function CollageEngine(canvas, opts) {
   opts = opts || {};
   const scroller = opts.scroller || null;
+  // In document mode (opts.scrollEvents, opts.pointerTarget) the scroller is the
+  // page itself: scroll events come from window, mouse drags from pointerTarget.
+  const scrollEvents = opts.scrollEvents || scroller;
+  const pointerTarget = opts.pointerTarget || scroller;
+  const ignorePointer = (e) => !!(opts.ignoreSelector && e.target && e.target.closest && e.target.closest(opts.ignoreSelector));
   const ctx = canvas.getContext('2d');
   const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.15 };
   let layers = [];
@@ -71,7 +76,7 @@ function CollageEngine(canvas, opts) {
     let lastLeft = CENTER, lastTop = CENTER;
     scroller.scrollLeft = CENTER;
     scroller.scrollTop = CENTER;
-    scroller.addEventListener('scroll', () => {
+    scrollEvents.addEventListener('scroll', () => {
       const sl = scroller.scrollLeft, st = scroller.scrollTop;
       panX += (sl - lastLeft) * settings.speed;
       panY += (st - lastTop) * settings.speed;
@@ -86,15 +91,15 @@ function CollageEngine(canvas, opts) {
     // Desktop mouse click-and-drag: native scrolling doesn't respond to this
     // at all, so it's handled the same way as the no-scroller fallback below,
     // just restricted to pointerType 'mouse' (touch already has real scrolling).
-    scroller.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'mouse') return;
+    pointerTarget.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || ignorePointer(e)) return;
       dragging = true;
       lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
       vx = 0; vy = 0;
-      scroller.setPointerCapture(e.pointerId);
+      try { pointerTarget.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
       interacted();
     });
-    scroller.addEventListener('pointermove', (e) => {
+    pointerTarget.addEventListener('pointermove', (e) => {
       if (!dragging || e.pointerType !== 'mouse') return;
       const now = performance.now();
       const dt = Math.max(1, now - lastT);
@@ -106,8 +111,8 @@ function CollageEngine(canvas, opts) {
       lastX = e.clientX; lastY = e.clientY; lastT = now;
     });
     const stopDragS = (e) => { if (e.pointerType === 'mouse') dragging = false; };
-    scroller.addEventListener('pointerup', stopDragS);
-    scroller.addEventListener('pointercancel', stopDragS);
+    pointerTarget.addEventListener('pointerup', stopDragS);
+    pointerTarget.addEventListener('pointercancel', stopDragS);
   } else {
     // ---- fallback: simulate everything on the canvas itself (used when no
     // scroller is supplied, e.g. the console's live preview) ----
