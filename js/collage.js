@@ -42,7 +42,9 @@ function CollageEngine(canvas, opts) {
     return { w: r.width, h: r.height };
   }
   function resize() {
-    const dpr = window.devicePixelRatio || 1;
+    // Capped at 2: the canvas is oversized (see style.css) and phones run short
+    // of canvas memory; the layers are upscaled photos anyway, so 3x buys nothing.
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     const v = viewportSize();
     if (v.w === W && v.h === H) return;   // skip the work when nothing changed
     W = v.w; H = v.h;

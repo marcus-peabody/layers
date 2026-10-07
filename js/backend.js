@@ -50,7 +50,7 @@ async function loadLayerAsset(src) {
     try {
       const res = await fetch(src);
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const g = decodeGif(await res.arrayBuffer(), 480, 60);
+      const g = await decodeGif(await res.arrayBuffer(), 360, 48);
       if (g.frames.length > 1) return { img: g.frames[0], frames: g.frames };
     } catch (e) { /* fall through to the plain image */ }
   }

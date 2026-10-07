@@ -24,10 +24,10 @@ html, body {
    those bands empty. The collage is an endless pattern, so the extra is free. */
 canvas {
   position: absolute;
-  top: -240px;
-  left: -240px;
-  width: calc(100% + 480px);
-  height: calc(100% + 480px);
+  top: -160px;
+  left: -160px;
+  width: calc(100% + 320px);
+  height: calc(100% + 320px);
   display: block;
   z-index: 0;
 }

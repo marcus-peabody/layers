@@ -2,7 +2,11 @@
 // composited as RGBA, so the collage can show a different frame depending on
 // how far you have scrolled. decodeGif() turns those into small canvases.
 
-function parseGif(buf) {
+// parseGif(buf)               -> { width, height, frames: [RGBA, ...] } (every frame)
+// parseGif(buf, want, emit)   -> only frames where want(index) is true are passed to
+//                                emit(rgba, index), so a long GIF never sits in memory
+//                                whole. Returns { width, height, count }.
+function parseGif(buf, want, emit) {
   const d = new Uint8Array(buf);
   if (String.fromCharCode(d[0], d[1], d[2]) !== 'GIF') throw new Error('not a GIF');
   const W = d[6] | (d[7] << 8), H = d[8] | (d[9] << 8);
@@ -12,6 +16,7 @@ function parseGif(buf) {
 
   const canvas = new Uint8ClampedArray(W * H * 4);   // what the viewer would see right now
   const frames = [];
+  let count = 0;
   let gce = { disposal: 0, trans: -1 };
   let prev = null;                                   // { disposal, x, y, w, h, saved }
 
@@ -71,23 +76,53 @@ function parseGif(buf) {
         canvas[q] = ct[v * 3]; canvas[q + 1] = ct[v * 3 + 1]; canvas[q + 2] = ct[v * 3 + 2]; canvas[q + 3] = 255;
       }
     }
-    frames.push(new Uint8ClampedArray(canvas));
+    if (!want) frames.push(new Uint8ClampedArray(canvas));
+    else if (want(count)) emit(new Uint8ClampedArray(canvas), count);
+    count++;
     prev = { disposal: gce.disposal, x, y, w, h, saved };
     gce = { disposal: 0, trans: -1 };
   }
-  return { width: W, height: H, frames };
+  return { width: W, height: H, frames, count };
 }
 
+// Number of frames, without decoding any pixels.
+function countGifFrames(buf) {
+  const d = new Uint8Array(buf);
+  let p = 13, n = 0;
+  if (d[10] & 0x80) p += 3 << ((d[10] & 7) + 1);
+  const skip = () => { while (d[p] !== 0 && p < d.length) p += d[p] + 1; p++; };
+  while (p < d.length) {
+    const b = d[p++];
+    if (b === 0x3b) break;
+    if (b === 0x21) { p++; skip(); continue; }
+    if (b !== 0x2c) continue;
+    const f = d[p + 8];
+    p += 9;
+    if (f & 0x80) p += 3 << ((f & 7) + 1);
+    p++;
+    skip();
+    n++;
+  }
+  return n;
+}
+
+// Frame rectangles are clipped to the screen: a rectangle that pokes past the
+// right or bottom edge must not spill into the next row (that shows as blocks).
+function clipW(buf, W, r) { return Math.max(0, Math.min(r.w, W - r.x)); }
+function clipH(buf, W, r) { return Math.max(0, Math.min(r.h, buf.length / 4 / W - r.y)); }
 function clearRect(buf, W, r) {
-  for (let j = 0; j < r.h; j++) buf.fill(0, ((r.y + j) * W + r.x) * 4, ((r.y + j) * W + r.x + r.w) * 4);
+  const w = clipW(buf, W, r), h = clipH(buf, W, r);
+  for (let j = 0; j < h; j++) buf.fill(0, ((r.y + j) * W + r.x) * 4, ((r.y + j) * W + r.x + w) * 4);
 }
 function saveRect(buf, W, r) {
   const out = new Uint8ClampedArray(r.w * r.h * 4);
-  for (let j = 0; j < r.h; j++) out.set(buf.subarray(((r.y + j) * W + r.x) * 4, ((r.y + j) * W + r.x + r.w) * 4), j * r.w * 4);
+  const w = clipW(buf, W, r), h = clipH(buf, W, r);
+  for (let j = 0; j < h; j++) out.set(buf.subarray(((r.y + j) * W + r.x) * 4, ((r.y + j) * W + r.x + w) * 4), j * r.w * 4);
   return out;
 }
 function restoreRect(buf, W, r) {
-  for (let j = 0; j < r.h; j++) buf.set(r.saved.subarray(j * r.w * 4, (j + 1) * r.w * 4), ((r.y + j) * W + r.x) * 4);
+  const w = clipW(buf, W, r), h = clipH(buf, W, r);
+  for (let j = 0; j < h; j++) buf.set(r.saved.subarray(j * r.w * 4, j * r.w * 4 + w * 4), ((r.y + j) * W + r.x) * 4);
 }
 
 function lzw(minCode, data, npix) {
@@ -119,26 +154,40 @@ function lzw(minCode, data, npix) {
   return out;
 }
 
-// Browser side: frames as small canvases. Big GIFs are shrunk and thinned so a
-// phone can hold them (frames are evenly subsampled down to maxFrames).
-function decodeGif(buf, maxSide, maxFrames) {
-  const g = parseGif(buf);
-  const k = Math.min(1, maxSide / Math.max(g.width, g.height));
-  const w = Math.max(1, Math.round(g.width * k)), h = Math.max(1, Math.round(g.height * k));
-  const full = document.createElement('canvas');
-  full.width = g.width; full.height = g.height;
-  const fctx = full.getContext('2d');
-  const n = Math.min(g.frames.length, maxFrames);
-  const frames = [];
-  for (let i = 0; i < n; i++) {
-    const src = g.frames[Math.floor(i * g.frames.length / n)];
-    fctx.putImageData(new ImageData(src, g.width, g.height), 0, 0);
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    c.getContext('2d').drawImage(full, 0, 0, w, h);
-    frames.push(c);
-  }
-  return { frames, width: w, height: h };
+// Browser side: frames as small images. Phones have tight canvas/GPU memory, so
+// big GIFs are shrunk and thinned, only the frames we keep are ever stored, and
+// they are ImageBitmaps (not one <canvas> per frame, which iOS Safari handles
+// badly -- it shows blocks of garbage colour once it runs short).
+async function decodeGif(buf, maxSide, maxFrames) {
+  const total = countGifFrames(buf);
+  const n = Math.max(1, Math.min(total, maxFrames));
+  const keep = new Set();
+  for (let k = 0; k < n; k++) keep.add(Math.floor(k * total / n));
+
+  let full = null, fctx = null, small = null, sctx = null, w = 0, h = 0;
+  const pending = [];
+  const info = parseGif(buf, (i) => keep.has(i), (rgba) => {
+    if (!full) {
+      const g = readGifSize(buf);
+      const k = Math.min(1, maxSide / Math.max(g.width, g.height));
+      w = Math.max(1, Math.round(g.width * k)); h = Math.max(1, Math.round(g.height * k));
+      full = document.createElement('canvas'); full.width = g.width; full.height = g.height;
+      fctx = full.getContext('2d');
+      small = document.createElement('canvas'); small.width = w; small.height = h;
+      sctx = small.getContext('2d');
+    }
+    fctx.putImageData(new ImageData(rgba, full.width, full.height), 0, 0);
+    sctx.clearRect(0, 0, w, h);
+    sctx.drawImage(full, 0, 0, w, h);
+    if (typeof createImageBitmap === 'function') pending.push(createImageBitmap(small));
+    else { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(small, 0, 0); pending.push(Promise.resolve(c)); }
+  });
+  const frames = await Promise.all(pending);
+  return { frames, width: w, height: h, count: info.count };
+}
+function readGifSize(buf) {
+  const d = new Uint8Array(buf, 0, 10);
+  return { width: d[6] | (d[7] << 8), height: d[8] | (d[9] << 8) };
 }
 
-if (typeof module !== 'undefined') module.exports = { parseGif, lzw };
+if (typeof module !== 'undefined') module.exports = { parseGif, lzw, countGifFrames };
