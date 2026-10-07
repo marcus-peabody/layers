@@ -128,6 +128,7 @@ function runViewer(slug) {
       dock.classList.toggle('open', open);
       toggle.setAttribute('aria-expanded', String(open));
       if (!open) menu.classList.add('hidden');
+      $('version').classList.toggle('show', open);
     }
     function syncToggleLabel() {
       toggle.setAttribute('aria-label', dock.classList.contains('open') || dock.classList.contains('editing') ? 'Close' : 'Settings');

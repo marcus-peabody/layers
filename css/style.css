@@ -76,8 +76,9 @@ canvas {
   right: 14px;
   top: calc(12px + env(safe-area-inset-top, 0px));
   text-align: right;
-  opacity: 0.45;
+  opacity: 0;            /* only shown while the settings pill is open */
 }
+#version.show { opacity: 0.6; }
 
 .gone { opacity: 0; }
 /* Things that start hidden must also be out of layout and not tappable. */
