@@ -162,15 +162,7 @@ function initEditor(engine, collage, hasEditAccess) {
           el('label', { class: 'onoff' }, on, ' show')),
         slider('Size', 0.2, 4, 0.05, row.scale,
           (v) => { row.scale = v; item.layer.scale = v; refreshPreview(); },
-          (v) => save(() => Backend.updateLayer(row.id, { scale: v }))),
-        // A layer can only sit between the depths of its neighbours, so the
-        // front of the stack is always the fastest-moving.
-        slider('Depth (closer = faster)',
-          idx > 0 ? items[idx - 1].row.depth : 0.1,
-          idx < items.length - 1 ? items[idx + 1].row.depth : 2.5,
-          0.05, row.depth,
-          (v) => { row.depth = v; item.layer.depth = v; refreshPreview(); },
-          (v) => { save(() => Backend.updateLayer(row.id, { depth: v })); renderList(); })),
+          (v) => save(() => Backend.updateLayer(row.id, { scale: v })))),
       el('div', { class: 'btns' },
         el('button', { class: 'btn', type: 'button', title: 'Bring forward', 'aria-label': 'Bring forward', ...(atFront ? { disabled: '' } : {}), onclick: () => move(idx, +1) }, icon('up')),
         el('button', { class: 'btn', type: 'button', title: 'Send back', 'aria-label': 'Send back', ...(atBack ? { disabled: '' } : {}), onclick: () => move(idx, -1) }, icon('down')),

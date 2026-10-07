@@ -70,10 +70,7 @@ already-updated result immediately.
   paste stickers" box, then paste.
 - **Scene:** *Apparent depth* (overall parallax strength), *Scroll speed*,
   *Density* (bigger = images further apart), *Rotation* (0 = everything level, up to 30 degrees either way), *Tilt sensitivity* (0-0.3, default 0.15).
-- **Layers:** the list shows the front-most layer first. Per layer: *Size*,
-  *Depth* (how fast it moves: small = far/slow, large = near/fast; a layer can
-  only sit between the depths of the layers behind and in front of it, so the
-  front is always fastest), show/hide,
+- **Layers:** the list shows the front-most layer first. Per layer: *Size*, show/hide,
   bring forward (^), send back (v), delete (x). Hidden layers still show,
   dimmed, while editing, so you can see what you're toggling.
 - Sliders update the live piece as you drag and save when you let go. A green
