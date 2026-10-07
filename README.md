@@ -8,7 +8,7 @@ It's a single page, `index.html`. A round settings button bottom-right opens
 into a pill: share, edit, tilt (phones) and all collages, with an X to close it.
 Edit opens the editor in place, right on top of the live piece -- there's no
 separate page to edit on, and no separate preview to keep in sync with the real
-thing. The bare site address shows a gallery of all collages (4:5 covers, two
+thing. The bare site address shows a gallery of all collages (4:5 pictures of each collage, two
 columns; a red dot marks collages that gained layers since you last opened them).
 
 The page reads layers from Supabase, and **falls back to the static images in

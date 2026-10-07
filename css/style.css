@@ -21,7 +21,8 @@ html, body {
 /* The canvas is deliberately LARGER than the screen and spills off every edge.
    Safari paints page content underneath its status bar and toolbars, but only
    if something is there; a canvas the exact size of the layout viewport leaves
-   those bands empty. The collage is an endless pattern, so the extra is free. */
+   those bands empty. The collage is an endless pattern, so the extra is free.
+   The 160px here must match `bleed` in viewer.js (the gallery cover uses it). */
 canvas {
   position: absolute;
   top: -160px;
@@ -175,7 +176,9 @@ canvas {
   position: fixed;
   inset: 0;
   z-index: 20;
-  background: #0e0e10 center / cover no-repeat;
+  overflow: hidden;
+  background: #0e0e10;
   transition: opacity 0.35s ease;
 }
+#veil img { position: absolute; left: 0; top: 0; width: 430px; height: 932px; max-width: none; transform-origin: 0 0; }
 #veil.fade { opacity: 0; pointer-events: none; }

@@ -117,7 +117,7 @@ const Backend = (function () {
     problem,
 
     publicUrl(path) { return base + '/storage/v1/object/public/layers/' + path; },
-    coverUrl(collageId, version) { return this.publicUrl(collageId + '/cover.jpg') + '?v=' + (version || 0); },
+    coverUrl(collageId, version) { return this.publicUrl(collageId + '/view.jpg') + '?v=' + (version || 0); },
 
     // ---------- collages ----------
     listCollages() {

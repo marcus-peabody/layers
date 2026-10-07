@@ -323,28 +323,28 @@ function initEditor(engine, collage, hasEditAccess) {
     }
   }
 
-  // The gallery thumbnail: a 4:5 crop of the live canvas, saved next to the
-  // layer files. Taken only when the editor is closed (so hidden layers are
-  // really hidden) and only when something changed.
+  // The gallery picture: exactly what a 430x932 screen shows when the collage
+  // first opens (no pan, no tilt), captured at 2x so the zoom from the gallery
+  // lands on the same pixels the live view draws. Taken only when the editor is
+  // closed (hidden layers really hidden) and only when something changed.
+  const VIEW_W = 430, VIEW_H = 932;
   async function updateCover() {
     dirty = false;
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const src = $('canvas');
-      if (!src.width || !src.height) return;
-      const cw = Math.min(src.width, src.height * 0.8), ch = cw / 0.8;
+      const shot = engine.capture(VIEW_W, VIEW_H, 2);
       const c = document.createElement('canvas');
-      c.width = 480; c.height = 600;
+      c.width = shot.width; c.height = shot.height;
       const x = c.getContext('2d');
       x.fillStyle = '#0e0e10';
-      x.fillRect(0, 0, 480, 600);
-      x.drawImage(src, (src.width - cw) / 2, (src.height - ch) / 2, cw, ch, 0, 0, 480, 600);
-      const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.82));
-      if (blob) await Backend.uploadFile(collage.id + '/cover.jpg', blob, true);
+      x.fillRect(0, 0, c.width, c.height);
+      x.drawImage(shot, 0, 0);
+      const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.8));
+      if (blob) await Backend.uploadFile(collage.id + '/view.jpg', blob, true);
     } catch (e) { /* tainted canvas or network: the gallery just shows a placeholder */ }
   }
 
-  // First visit with edit access to a collage that has no cover yet.
+  // First visit with edit access to a collage that has no picture yet.
   fetch(Backend.coverUrl(collage.id, 0), { method: 'HEAD' })
     .then((res) => { if (!res.ok) setTimeout(updateCover, 4000); })
     .catch(() => {});

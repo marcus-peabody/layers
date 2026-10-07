@@ -155,13 +155,19 @@ function CollageEngine(canvas, opts) {
   }
 
   function render() {
-    ctx.clearRect(0, 0, W, H);
     let tiltX = 0, tiltY = 0;
     if (tilt.enabled && tilt.baseGamma !== null) {
       const s = settings.tiltSensitivity;
       tiltX = (tilt.gamma - tilt.baseGamma) * s * 6;
       tiltY = (tilt.beta - tilt.baseBeta) * s * 6;
     }
+    drawScene(ctx, W, H, panX, panY, tiltX, tiltY);
+  }
+
+  // Draws the whole collage for a given camera onto any 2D context. render()
+  // uses it for the live canvas; capture() uses it for the gallery cover.
+  function drawScene(ctx, W, H, panX, panY, tiltX, tiltY) {
+    ctx.clearRect(0, 0, W, H);
     for (const l of layers) {
       const iw = l.img.naturalWidth || l.img.width, ih = l.img.naturalHeight || l.img.height;
       if (!iw || !ih) continue;
@@ -244,7 +250,22 @@ function CollageEngine(canvas, opts) {
     },
     disableTilt() { tilt.enabled = false; window.removeEventListener('deviceorientation', handleOrientation); },
     isTiltEnabled() { return tilt.enabled; },
-    start() { requestAnimationFrame(frame); }
+    start() { requestAnimationFrame(frame); },
+
+    // A picture of exactly what a w x h screen shows when the collage first
+    // opens (camera at the start, no tilt). The live canvas spills `bleed` px
+    // past every screen edge, so the screen's top-left sits at (bleed, bleed).
+    // Returns a canvas w*scale by h*scale.
+    capture(w, h, scale) {
+      const bleed = opts.bleed || 0;
+      const c = document.createElement('canvas');
+      c.width = Math.round(w * scale);
+      c.height = Math.round(h * scale);
+      const x = c.getContext('2d');
+      x.setTransform(scale, 0, 0, scale, -bleed * scale, -bleed * scale);
+      drawScene(x, w + 2 * bleed, h + 2 * bleed, 0, 0, 0, 0);
+      return c;
+    }
   };
 }
 

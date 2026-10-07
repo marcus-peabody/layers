@@ -36,7 +36,14 @@
     if (z && z.slug === slug && Date.now() - z.t < 15000) {
       const veil = document.createElement('div');
       veil.id = 'veil';
-      if (z.src) veil.style.backgroundImage = 'url("' + z.src.replace(/"/g, '%22') + '")';
+      if (z.src) {
+        // the same picture at the same place the gallery zoom ended on
+        const pic = document.createElement('img');
+        pic.alt = '';
+        pic.src = z.src;
+        pic.style.transform = 'translate(' + (z.tx || 0) + 'px,' + (z.ty || 0) + 'px) scale(' + (z.scale || 1) + ')';
+        veil.appendChild(pic);
+      }
       viewerView.appendChild(veil);
       let done = false;
       window.dismissVeil = function () {

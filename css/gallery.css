@@ -106,14 +106,24 @@
   cursor: pointer;
 }
 
-/* The cover that flies up to fill the screen when a tile is tapped. */
+/* The overlay that flies up to fill the screen when a tile is tapped: a clip
+   box holding the collage picture at natural size (see zoomInto). */
 .zoom {
   position: fixed;
   z-index: 50;
-  background: #17171a center / cover no-repeat;
+  overflow: hidden;
+  background: #0e0e10;
   border-radius: 14px;
   transition: left 0.32s cubic-bezier(0.3, 0.7, 0.2, 1), top 0.32s cubic-bezier(0.3, 0.7, 0.2, 1),
     width 0.32s cubic-bezier(0.3, 0.7, 0.2, 1), height 0.32s cubic-bezier(0.3, 0.7, 0.2, 1),
     border-radius 0.32s ease;
+}
+.zoom img {
+  position: absolute;
+  left: 0; top: 0;
+  width: 430px; height: 932px;
+  max-width: none;
+  transform-origin: 0 0;
+  transition: transform 0.32s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 .zoom.go { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }

@@ -25,18 +25,41 @@ function runGallery() {
 
   // One 4:5 tile per collage: its cover image, then its name. A red dot before
   // the name means layers were added since this device last opened it.
+  // The picture is a 430x932 (CSS px) shot of the collage's first screen. The
+  // overlay is a clip box holding that picture at natural size; box and picture
+  // animate together, so it reads as a camera moving from the tile into the live
+  // view. The viewer's veil shows the same picture at the end transform.
+  const VIEW_W = 430, VIEW_H = 932;
+  function endTransform() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    if (vw <= VIEW_W && vh <= VIEW_H) return { scale: 1, tx: 0, ty: 0 };
+    const k = Math.max(vw / VIEW_W, vh / VIEW_H);
+    return { scale: k, tx: (vw - VIEW_W * k) / 2, ty: (vh - VIEW_H * k) / 2 };
+  }
   function zoomInto(coverEl, src, slug, link) {
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    try { sessionStorage.setItem('zoomCover', JSON.stringify({ slug, src, t: Date.now() })); } catch (e) { /* no handoff */ }
+    const end = endTransform();
+    try { sessionStorage.setItem('zoomCover', JSON.stringify({ slug, src, scale: end.scale, tx: end.tx, ty: end.ty, t: Date.now() })); } catch (e) { /* no handoff */ }
     if (reduce) { location.href = link; return; }
     const r = coverEl.getBoundingClientRect();
     const z = document.createElement('div');
     z.className = 'zoom';
-    if (src) z.style.backgroundImage = 'url("' + src.replace(/"/g, '%22') + '")';
     Object.assign(z.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    let hero = null, s0 = 1, x0 = 0, y0 = 0;
+    if (src) {
+      hero = document.createElement('img');
+      hero.alt = '';
+      hero.src = src;
+      s0 = Math.max(r.width / VIEW_W, r.height / VIEW_H);   // same centre-crop the tile shows
+      x0 = (r.width - VIEW_W * s0) / 2;
+      y0 = (r.height - VIEW_H * s0) / 2;
+      hero.style.transform = 'translate(' + x0 + 'px,' + y0 + 'px) scale(' + s0 + ')';
+      z.appendChild(hero);
+    }
     document.body.appendChild(z);
-    void z.offsetWidth;   // commit the start position before animating
+    void z.offsetWidth;   // commit the start state before animating
     z.classList.add('go');
+    if (hero) hero.style.transform = 'translate(' + end.tx + 'px,' + end.ty + 'px) scale(' + end.scale + ')';
     setTimeout(() => { location.href = link; }, 320);
   }
 

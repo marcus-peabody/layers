@@ -9,7 +9,8 @@ function runViewer(slug) {
     statusEl.className = isError ? 'error' : '';
   }
 
-  const engine = CollageEngine(canvas, { scroller: $('scroller') });
+  // bleed must match the canvas overhang in style.css
+  const engine = CollageEngine(canvas, { scroller: $('scroller'), bleed: 160 });
   engine.onFirstInteract(() => hintEl.classList.add('gone'));
   engine.start();
 
@@ -221,12 +222,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v15';
+  versionEl.textContent = 'v16';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v15 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v16 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');
