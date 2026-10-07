@@ -105,3 +105,15 @@
   font-size: 13px;
   cursor: pointer;
 }
+
+/* The cover that flies up to fill the screen when a tile is tapped. */
+.zoom {
+  position: fixed;
+  z-index: 50;
+  background: #17171a center / cover no-repeat;
+  border-radius: 14px;
+  transition: left 0.32s cubic-bezier(0.3, 0.7, 0.2, 1), top 0.32s cubic-bezier(0.3, 0.7, 0.2, 1),
+    width 0.32s cubic-bezier(0.3, 0.7, 0.2, 1), height 0.32s cubic-bezier(0.3, 0.7, 0.2, 1),
+    border-radius 0.32s ease;
+}
+.zoom.go { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }

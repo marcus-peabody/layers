@@ -27,5 +27,29 @@
     try { history.replaceState(null, '', clean); } catch (e) { /* token is remembered regardless; a tidy URL is a bonus */ }
   }
 
+  // Arrived by zooming in from the gallery: hold the cover on screen until the
+  // real collage has drawn its first frame, then fade it away.
+  window.dismissVeil = function () {};
+  try {
+    const z = JSON.parse(sessionStorage.getItem('zoomCover') || 'null');
+    sessionStorage.removeItem('zoomCover');
+    if (z && z.slug === slug && Date.now() - z.t < 15000) {
+      const veil = document.createElement('div');
+      veil.id = 'veil';
+      if (z.src) veil.style.backgroundImage = 'url("' + z.src.replace(/"/g, '%22') + '")';
+      viewerView.appendChild(veil);
+      let done = false;
+      window.dismissVeil = function () {
+        if (done) return;
+        done = true;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          veil.classList.add('fade');
+          setTimeout(() => veil.remove(), 450);
+        }));
+      };
+      setTimeout(window.dismissVeil, 6000);   // never get stuck behind it
+    }
+  } catch (e) { /* no sessionStorage: just no zoom handoff */ }
+
   if (typeof runViewer === 'function') runViewer(slug);
 })();

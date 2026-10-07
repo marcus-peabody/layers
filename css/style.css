@@ -84,15 +84,16 @@ canvas {
 /* Things that start hidden must also be out of layout and not tappable. */
 #viewerView.gone, #galleryView.gone, #dockActions .gone, #shareCollab.gone { display: none; }
 
-/* ---- settings dock: round gear button that opens into a pill ---- */
+/* ---- settings dock: round gear button that opens upward into a vertical pill ---- */
 #dock {
   position: fixed;
   z-index: 8;
   right: 16px;
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   display: flex;
+  flex-direction: column;
   align-items: center;
-  height: 52px;
+  width: 52px;
   box-sizing: border-box;
   border-radius: 26px;
   border: 1px solid var(--line);
@@ -102,15 +103,16 @@ canvas {
 }
 #dockActions {
   display: flex;
+  flex-direction: column;
   overflow: hidden;
-  max-width: 0;
-  transition: max-width 0.25s ease;
+  max-height: 0;
+  transition: max-height 0.25s ease;
 }
-#dock.open #dockActions { max-width: 280px; }
+#dock.open #dockActions { max-height: 320px; }
 #dockActions > * {
   flex: none;
-  width: 48px;
-  height: 50px;
+  width: 50px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -139,13 +141,13 @@ canvas {
 #dToggle .i-x { display: none; }
 #dock.open #dToggle .i-gear, #dock.editing #dToggle .i-gear { display: none; }
 #dock.open #dToggle .i-x, #dock.editing #dToggle .i-x { display: block; }
-#dock.editing #dockActions { max-width: 0; }
+#dock.editing #dockActions { max-height: 0; }
 
 #shareMenu {
   position: fixed;
   z-index: 8;
-  right: 16px;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  right: 76px;   /* left of the dock; viewer.js lines it up with the share button */
+  bottom: 200px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -167,3 +169,13 @@ canvas {
 }
 #shareMenu button:last-child { border-bottom: none; }
 #shareMenu button:hover { background: #202024; }
+
+/* Covers the viewer while it loads when you arrive by zooming in from the gallery. */
+#veil {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: #0e0e10 center / cover no-repeat;
+  transition: opacity 0.35s ease;
+}
+#veil.fade { opacity: 0; pointer-events: none; }

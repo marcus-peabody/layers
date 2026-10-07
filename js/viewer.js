@@ -118,6 +118,7 @@ function runViewer(slug) {
       window.addEventListener('pagehide', () => markVisited(slug));
     }
     setupDock(collage, hasEditAccess, editor);
+    if (window.dismissVeil) window.dismissVeil();
     if (editor && window.openEditorOnLoad) $('dEdit').click();   // just created: go straight to the editor
   })();
 
@@ -186,7 +187,13 @@ function runViewer(slug) {
         } catch (e) { say('Could not copy: ' + e.message, true); }
       }
 
-      $('dShare').addEventListener('click', () => menu.classList.toggle('hidden'));
+      $('dShare').addEventListener('click', () => {
+        menu.classList.toggle('hidden');
+        // line the menu up with the share button, on its left
+        const r = $('dShare').getBoundingClientRect(), root = document.documentElement;
+        menu.style.bottom = Math.max(8, root.clientHeight - r.bottom) + 'px';
+        menu.style.right = (root.clientWidth - r.left + 8) + 'px';
+      });
       $('shareReadOnly').addEventListener('click', () => { menu.classList.add('hidden'); copy(linkFor(false), 'Read-only link'); });
       if (hasEditAccess) {
         const collabBtn = $('shareCollab');
@@ -215,12 +222,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v12';
+  versionEl.textContent = 'v13';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v12 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v13 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');

@@ -25,6 +25,21 @@ function runGallery() {
 
   // One 4:5 tile per collage: its cover image, then its name. A red dot before
   // the name means layers were added since this device last opened it.
+  function zoomInto(coverEl, src, slug, link) {
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { sessionStorage.setItem('zoomCover', JSON.stringify({ slug, src, t: Date.now() })); } catch (e) { /* no handoff */ }
+    if (reduce) { location.href = link; return; }
+    const r = coverEl.getBoundingClientRect();
+    const z = document.createElement('div');
+    z.className = 'zoom';
+    if (src) z.style.backgroundImage = 'url("' + src.replace(/"/g, '%22') + '")';
+    Object.assign(z.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    document.body.appendChild(z);
+    void z.offsetWidth;   // commit the start position before animating
+    z.classList.add('go');
+    setTimeout(() => { location.href = link; }, 320);
+  }
+
   function tile(c, newest) {
     const el = document.createElement('div');
     el.className = 'collage-row';
@@ -57,6 +72,13 @@ function runGallery() {
     label.textContent = c.title || c.slug;
     name.appendChild(label);
     el.appendChild(name);
+
+    // Tapping a tile zooms its cover up to fill the screen, then opens the collage.
+    [cover, name].forEach((a) => a.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button > 0) return;   // let "open in new tab" work
+      e.preventDefault();
+      zoomInto(cover, img.parentNode ? img.src : '', c.slug, link);
+    }));
 
     if (canEdit) {
       const del = document.createElement('button');
@@ -132,5 +154,9 @@ function runGallery() {
   }
   load();
   // Coming back with the browser's back button restores the old page: refresh it.
-  window.addEventListener('pageshow', (e) => { if (e.persisted) load(); });
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    document.querySelectorAll('.zoom').forEach((z) => z.remove());   // back from a collage: drop the zoom overlay
+    load();
+  });
 }
