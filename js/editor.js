@@ -277,6 +277,17 @@ function initEditor(engine, collage, hasEditAccess) {
   // input rather than a proper paste event (clears it so it can't linger).
   pasteZone.addEventListener('input', () => { pasteZone.value = ''; });
 
+  // ---------- name ----------
+  const titleInput = $('titleInput');
+  titleInput.value = collage.title || '';
+  titleInput.addEventListener('change', () => {
+    const title = titleInput.value.trim() || 'Untitled';
+    titleInput.value = title;
+    if (title === collage.title) return;
+    collage.title = title;
+    save(() => Backend.updateCollage(collage.id, { title }));
+  });
+
   // ---------- scene settings ----------
   function buildScene() {
     const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 0.5 });

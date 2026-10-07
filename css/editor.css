@@ -114,3 +114,18 @@ h2:first-of-type { margin-top: 4px; }
 @media (max-width: 899px) {
   #panel { width: 100%; border-left: 0; }
 }
+
+#titleInput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 16px;   /* 16px stops iOS zooming in when the field is focused */
+  color: var(--text);
+  background: #0e0e10;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+}
+#titleInput:focus { border-color: var(--accent); }
