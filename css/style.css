@@ -182,3 +182,13 @@ html.viewer #spacer { display: block; position: absolute; top: 0; left: 0; width
 }
 #veil img { position: absolute; left: 0; top: 0; width: 430px; height: 932px; max-width: none; transform-origin: 0 0; }
 #veil.fade { opacity: 0; pointer-events: none; }
+
+/* Icons: thin, crisp, sharp-cornered line drawings. Set here (CSS beats the
+   presentation attributes in the markup) so every icon matches. */
+#dock svg, .ico svg, .btn.del svg {
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 10;
+  shape-rendering: geometricPrecision;
+}

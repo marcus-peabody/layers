@@ -92,6 +92,7 @@
   border-radius: 50%;
   background: #e5483b;
 }
+.collage-row .btn.del svg { stroke-width: 1.5; stroke-linecap: square; }
 .collage-row .btn.del {
   position: absolute;
   top: 8px;
