@@ -202,3 +202,12 @@ which is a much smaller thing to debug.
 The code needs no library -- it talks to Supabase with plain `fetch`. Once the
 checks above pass, put your Project URL and public key into `js/config.js`
 (see the README), push, and open the site.
+
+## Adding the Rotation setting (run once)
+
+The Rotation scene slider (0-30 degrees) is saved per collage. Run this in the
+Supabase SQL editor; until you do, the slider still works live but isn't saved.
+
+```sql
+alter table collages add column if not exists rotation double precision not null default 15;
+```

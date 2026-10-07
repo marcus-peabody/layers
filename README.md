@@ -69,7 +69,7 @@ already-updated result immediately.
 - **Paste a sticker:** copy a subject cut out in Photos, tap the "Tap here to
   paste stickers" box, then paste.
 - **Scene:** *Apparent depth* (overall parallax strength), *Scroll speed*,
-  *Density* (bigger = images further apart), *Tilt sensitivity* (0-0.3, default 0.15).
+  *Density* (bigger = images further apart), *Rotation* (0 = everything level, up to 30 degrees either way), *Tilt sensitivity* (0-0.3, default 0.15).
 - **Layers:** the list shows the front-most layer first. Per layer: *Size*,
   *Depth* (how fast it moves: small = far/slow, large = near/fast; a layer can
   only sit between the depths of the layers behind and in front of it, so the

@@ -27,7 +27,7 @@ function runViewer(slug) {
     const rows = await Backend.listLayers(collage.id, true);
     const depths = depthsInStackOrder(rows.map((r) => r.depth));   // front = fastest
     return {
-      settings: { depthScale: collage.depth_scale, speed: collage.speed, density: collage.density, tiltSensitivity: collage.tilt_sensitivity },
+      settings: { depthScale: collage.depth_scale, speed: collage.speed, density: collage.density, tiltSensitivity: collage.tilt_sensitivity, rotation: collage.rotation ?? 15 },
       defs: rows.map((r, i) => ({
         url: Backend.publicUrl(r.storage_path),
         depth: depths[i],
@@ -230,12 +230,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v18';
+  versionEl.textContent = 'v19';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v18 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v19 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');

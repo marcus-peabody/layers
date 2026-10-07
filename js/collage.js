@@ -28,7 +28,7 @@ function CollageEngine(canvas, opts) {
   const pointerTarget = opts.pointerTarget || scroller;
   const ignorePointer = (e) => !!(opts.ignoreSelector && e.target && e.target.closest && e.target.closest(opts.ignoreSelector));
   const ctx = canvas.getContext('2d');
-  const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.15 };
+  const settings = { depthScale: 1, speed: 1, density: 1.2, tiltSensitivity: 0.15, rotation: 15 };   // rotation: max tilt of each image, degrees either way
   let layers = [];
   let W = 0, H = 0;
   let panX = 0, panY = 0;
@@ -207,7 +207,7 @@ function CollageEngine(canvas, opts) {
         for (let j = j0; j <= j1; j++) {
           const jx = (hash(i, j, l.seed) - 0.5) * cell * 0.8;
           const jy = (hash(j, i, l.seed + 1) - 0.5) * cell * 0.8;
-          const rot = (hash(i + 1, j + 1, l.seed) - 0.5) * 0.5;
+          const rot = (hash(i + 1, j + 1, l.seed) - 0.5) * 2 * settings.rotation * Math.PI / 180;
           const sx = i * cell + phaseX + jx - camX;   // tile centre on screen
           const sy = j * cell + phaseY + jy - camY;
           if (sx < -margin || sx > W + margin || sy < -margin || sy > H + margin) continue;

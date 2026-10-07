@@ -296,16 +296,19 @@ function initEditor(engine, collage, hasEditAccess) {
 
   // ---------- scene settings ----------
   function buildScene() {
-    const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 0.15 });
-    const persist = () => save(() => Backend.updateCollage(collage.id, {
-      depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density, tilt_sensitivity: settings.tilt_sensitivity
-    }));
+    const apply = () => engine.setSettings({ depthScale: settings.depth_scale, speed: settings.speed, density: settings.density, tiltSensitivity: settings.tilt_sensitivity ?? 0.15, rotation: settings.rotation ?? 15 });
+    const persist = () => save(() => {
+      const patch = { depth_scale: settings.depth_scale, speed: settings.speed, density: settings.density, tilt_sensitivity: settings.tilt_sensitivity };
+      if ('rotation' in collage) patch.rotation = settings.rotation;   // only once the column exists (see SUPABASE-SETUP.md)
+      return Backend.updateCollage(collage.id, patch);
+    });
     const scene = $('scene');
     scene.textContent = '';
     scene.append(
       slider('Apparent depth', 0.1, 2.5, 0.05, settings.depth_scale, (v) => { settings.depth_scale = v; apply(); }, persist),
       slider('Scroll speed', 0.2, 3, 0.1, settings.speed, (v) => { settings.speed = v; apply(); }, persist),
       slider('Density', 0.5, 3, 0.1, settings.density, (v) => { settings.density = v; apply(); }, persist),
+      slider('Rotation (degrees)', 0, 30, 1, settings.rotation ?? 15, (v) => { settings.rotation = v; apply(); }, persist),
       slider('Tilt sensitivity', 0, 0.3, 0.01, Math.min(0.3, settings.tilt_sensitivity ?? 0.15), (v) => { settings.tilt_sensitivity = v; apply(); }, persist));
     apply();
   }
