@@ -130,6 +130,16 @@ function initEditor(engine, collage, hasEditAccess) {
     flashSaved();
   }
 
+  // Small drawn icons for the layer buttons (up/down chevrons, symmetric X).
+  function icon(kind) {
+    const paths = { up: '<polyline points="6 15 12 9 18 15"></polyline>', down: '<polyline points="6 9 12 15 18 9"></polyline>',
+      x: '<line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line>' };
+    const span = document.createElement('span');
+    span.className = 'ico';
+    span.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + paths[kind] + '</svg>';
+    return span;
+  }
+
   function rowEl(item, idx) {
     const row = item.row;
     const on = el('input', { type: 'checkbox' });
@@ -162,9 +172,9 @@ function initEditor(engine, collage, hasEditAccess) {
           (v) => { row.depth = v; item.layer.depth = v; refreshPreview(); },
           (v) => { save(() => Backend.updateLayer(row.id, { depth: v })); renderList(); })),
       el('div', { class: 'btns' },
-        el('button', { class: 'btn', type: 'button', title: 'Bring forward', 'aria-label': 'Bring forward', ...(atFront ? { disabled: '' } : {}), onclick: () => move(idx, +1) }, '^'),
-        el('button', { class: 'btn', type: 'button', title: 'Send back', 'aria-label': 'Send back', ...(atBack ? { disabled: '' } : {}), onclick: () => move(idx, -1) }, 'v'),
-        el('button', { class: 'btn del', type: 'button', title: 'Delete', 'aria-label': 'Delete', onclick: () => remove(item) }, 'x')));
+        el('button', { class: 'btn', type: 'button', title: 'Bring forward', 'aria-label': 'Bring forward', ...(atFront ? { disabled: '' } : {}), onclick: () => move(idx, +1) }, icon('up')),
+        el('button', { class: 'btn', type: 'button', title: 'Send back', 'aria-label': 'Send back', ...(atBack ? { disabled: '' } : {}), onclick: () => move(idx, -1) }, icon('down')),
+        el('button', { class: 'btn del', type: 'button', title: 'Delete', 'aria-label': 'Delete', onclick: () => remove(item) }, icon('x'))));
   }
 
   // The list shows the front-most layer first, like most design tools.
