@@ -102,8 +102,7 @@ function runViewer(slug) {
       if (problems.length) {
         say(problems.join('\n'), true);
       } else {
-        say('Loaded ' + result.layers.length + ' layers - ' + source);
-        setTimeout(() => statusEl.classList.add('gone'), 2500);
+        say('');   // success is silent; only problems are shown
       }
     } catch (e) {
       problems.push('Error: ' + (e && e.message ? e.message : e));
