@@ -125,3 +125,18 @@ turn and tilt it to look around, as if the layers surrounded you inside a
 sphere. It is endless, so you can keep turning. Switching it off leaves the
 collage where you were looking. The old small parallax nudge is still in
 `js/collage.js` -- set `TILT_MODE` to `'offset'` to bring it back.
+
+## Web addresses follow the title
+
+A collage's address is made from its title ("Squamish Trip" -> `?c=squamish-trip`;
+a second one with the same title becomes `squamish-trip-2`). Renaming the title
+renames the address, and opening an older collage with edit access renames its
+old random address the same way. Old links to the previous address stop working.
+Your edit access and "new" dots move across automatically on the device you
+renamed it on; other devices need the collaborate link again.
+
+## Gallery pictures
+
+Whenever the owner opens a collage, its gallery picture (`view.jpg`) is
+refreshed a few seconds in, and again after closing the editor following any
+change. Empty collages get no picture.

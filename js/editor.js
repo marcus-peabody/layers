@@ -129,6 +129,7 @@ function initEditor(engine, collage, hasEditAccess) {
     }
     Backend.deleteFile(item.row.storage_path).catch(() => { /* the row is gone; a leftover file is harmless */ });
     items = items.filter((i) => i !== item);
+    dirty = true;
     renderList();
     refreshPreview();
     flashSaved();
@@ -249,6 +250,7 @@ function initEditor(engine, collage, hasEditAccess) {
       try { await addOne(images[k]); added++; }
       catch (e) { errors.push(images[k].name + ' -- ' + e.message); }
     }
+    if (added) dirty = true;   // the gallery picture needs redoing when the editor closes
     renderList();
     refreshPreview();
     const notes = [];
@@ -297,8 +299,32 @@ function initEditor(engine, collage, hasEditAccess) {
     titleInput.value = title;
     if (title === collage.title) return;
     collage.title = title;
-    save(() => Backend.updateCollage(collage.id, { title }));
+    save(() => Backend.updateCollage(collage.id, { title })).then(syncSlug);
   });
+
+  // The web address follows the title ("Squamish" -> ?c=squamish). Old
+  // addresses stop working; this device keeps its edit access and visit record.
+  async function syncSlug() {
+    if (slugMatches(collage.slug, collage.title)) return;
+    const old = collage.slug;
+    try {
+      const next = await Backend.uniqueSlug(collage.title, collage.id);
+      if (next === old) return;
+      await Backend.updateCollage(collage.id, { slug: next });
+      const tok = getRememberedEditToken(old);
+      if (tok) rememberEditToken(next, tok);
+      forgetEditToken(old);
+      const seen = getVisited(old);
+      if (seen) { try { localStorage.setItem('visited:' + next, String(seen)); } catch (e) { /* ignore */ } }
+      collage.slug = next;
+      try {
+        const u = new URL(location.href);
+        u.searchParams.set('c', next);
+        history.replaceState(null, '', u.pathname + u.search + u.hash);
+      } catch (e) { /* address bar just keeps the old text */ }
+    } catch (e) { /* keep the old address; the title is saved regardless */ }
+  }
+  syncSlug();
 
   // ---------- scene settings ----------
   function buildScene() {
@@ -344,6 +370,8 @@ function initEditor(engine, collage, hasEditAccess) {
   // closed (hidden layers really hidden) and only when something changed.
   const VIEW_W = 430, VIEW_H = 932;
   async function updateCover() {
+    if (editing) { dirty = true; return; }      // hidden layers would show dimmed: wait for close
+    if (!engine.layerCount()) return;           // nothing to picture yet
     dirty = false;
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -359,10 +387,9 @@ function initEditor(engine, collage, hasEditAccess) {
     } catch (e) { /* tainted canvas or network: the gallery just shows a placeholder */ }
   }
 
-  // First visit with edit access to a collage that has no picture yet.
-  fetch(Backend.coverUrl(collage.id, 0), { method: 'HEAD' })
-    .then((res) => { if (!res.ok) setTimeout(updateCover, 4000); })
-    .catch(() => {});
+  // Whenever the owner opens the collage, refresh its gallery picture a few
+  // seconds in. Cheap, and it repairs a missing or out-of-date one by itself.
+  setTimeout(updateCover, 4000);
 
   async function open() {
     panel.classList.remove('hidden');

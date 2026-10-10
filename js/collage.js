@@ -304,6 +304,7 @@ function CollageEngine(canvas, opts) {
       tilt.enabled = false; window.removeEventListener('deviceorientation', handleOrientation);
     },
     isTiltEnabled() { return tilt.enabled; },
+    layerCount() { return layers.length; },
     start() { requestAnimationFrame(frame); },
 
     // A picture of exactly what a w x h screen shows when the collage first

@@ -20,6 +20,18 @@ function forgetEditToken(slug) {
 
 // When each collage was last opened on this device. The gallery compares this
 // with the newest layer to decide which collages get a "new" dot.
+// Web addresses made from the collage title: "Squamish Trip!" -> "squamish-trip".
+function slugify(title) {
+  const s = String(title || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+  return s || 'collage';
+}
+// Does this address already follow the title (allowing a -2, -3 ... suffix)?
+function slugMatches(slug, title) {
+  const b = slugify(title);
+  return slug === b || new RegExp('^' + b.replace(/[^a-z0-9-]/g, '') + '-[0-9]+$').test(slug);
+}
+
 function markVisited(slug) {
   try { localStorage.setItem('visited:' + slug, String(Date.now())); } catch (e) { /* ignore */ }
 }
@@ -122,6 +134,17 @@ const Backend = (function () {
     // ---------- collages ----------
     listCollages() {
       return rest('collages?select=*&order=created_at.asc', 'load collages');
+    },
+    // A free address for this title: the plain slug, else slug-2, slug-3 ...
+    // (a collage may keep its own current address: exceptId).
+    async uniqueSlug(title, exceptId) {
+      const base = slugify(title);
+      for (let n = 1; n < 200; n++) {
+        const cand = n === 1 ? base : base + '-' + n;
+        const row = await this.getCollageBySlug(cand);
+        if (!row || row.id === exceptId) return cand;
+      }
+      return base + '-' + Date.now().toString(36);
     },
     async getCollageBySlug(slug) {
       const rows = await rest('collages?select=*&slug=eq.' + encodeURIComponent(slug), 'load collage');

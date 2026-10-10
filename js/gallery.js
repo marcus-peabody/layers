@@ -148,10 +148,10 @@ function runGallery() {
   $('newCollage').addEventListener('click', async () => {
     const title = window.prompt('Name this collage:', '');
     if (title === null) return;   // cancelled
-    const slug = randomSlug();
     const token = randomToken();
     say('Creating...');
     try {
+      const slug = await Backend.uniqueSlug(title.trim() || 'Untitled').catch(() => randomSlug());   // the address follows the title
       const c = await Backend.insertCollage({
         slug, title: title.trim() || 'Untitled', edit_token: token,
         depth_scale: 1, speed: 1, density: 1.2, tilt_sensitivity: 0.15

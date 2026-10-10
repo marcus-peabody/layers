@@ -68,6 +68,7 @@ function runViewer(slug) {
     return { settings, layers, failures, total: defs.length };
   }
 
+  const curSlug = () => (collage && collage.slug) || slug;   // the address can change when the title does
   say('Loading...');
   const problems = [];   // things that went wrong (shown in red)
   let result = null;
@@ -113,9 +114,9 @@ function runViewer(slug) {
     const hasEditAccess = !!getRememberedEditToken(slug);
     const editor = (typeof initEditor === 'function' && collage) ? initEditor(engine, collage, hasEditAccess) : null;
     if (collage) {
-      markVisited(slug);
+      markVisited(curSlug());
       // Also when leaving, so layers added during this visit don't show up as "new".
-      window.addEventListener('pagehide', () => markVisited(slug));
+      window.addEventListener('pagehide', () => markVisited(curSlug()));
     }
     setupDock(collage, hasEditAccess, editor);
     if (window.dismissVeil) window.dismissVeil();
@@ -149,7 +150,7 @@ function runViewer(slug) {
       const all = $('dMenu');
       all.href = location.pathname;
       all.classList.remove('gone');
-      all.addEventListener('click', () => markVisited(slug));
+      all.addEventListener('click', () => markVisited(curSlug()));
     }
 
     // edit
@@ -173,8 +174,8 @@ function runViewer(slug) {
         const u = new URL(location.href);
         u.search = '';
         u.hash = '';
-        u.searchParams.set('c', slug);
-        if (withEdit) u.searchParams.set('edit', getRememberedEditToken(slug));
+        u.searchParams.set('c', curSlug());
+        if (withEdit) u.searchParams.set('edit', getRememberedEditToken(curSlug()));
         return u.toString();
       }
       async function copy(text, label) {
@@ -222,12 +223,12 @@ function runViewer(slug) {
   // Version marker top-right. Add ?debug to the address for live screen sizes.
   const versionEl = $('version');
   const debug = /[?&]debug\b/.test(location.search);
-  versionEl.textContent = 'v31';
+  versionEl.textContent = 'v32';
   if (debug) {
     setInterval(() => {
       const r = canvas.getBoundingClientRect();
       const vv = window.visualViewport;
-      versionEl.textContent = 'v31 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      versionEl.textContent = 'v32 - canvas ' + Math.round(r.width) + 'x' + Math.round(r.height)
         + ' - screen ' + window.screen.width + 'x' + window.screen.height
         + ' - inner ' + window.innerWidth + 'x' + window.innerHeight
         + (vv ? ' - vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) : '');
