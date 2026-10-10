@@ -17,6 +17,11 @@
 // scrolling doesn't respond to mouse drags, so that path stays exactly as it
 // was. Without opts.scroller, everything (touch, mouse, wheel) falls back to
 // the original simulated panning on the canvas itself.
+// What the tilt button does. 'look': the phone is a window onto the collage --
+// turn and tilt it to look around, as if the layers lay inside a sphere around
+// you (infinite, so you can keep turning). 'offset': the old small parallax nudge.
+const TILT_MODE = 'look';
+const LOOK_PX_PER_RAD = 4000;   // x tilt sensitivity (0.15 -> 600px per radian)
 const GIF_PX_PER_FRAME = 24;   // scroll distance that advances a GIF layer by one frame
 
 function CollageEngine(canvas, opts) {
@@ -30,7 +35,8 @@ function CollageEngine(canvas, opts) {
   let dragging = false, lastX = 0, lastY = 0, lastT = 0;
   let vx = 0, vy = 0;                 // momentum velocity, px/ms (mouse-drag path only)
   let firstInteractCb = null;
-  const tilt = { enabled: false, baseBeta: null, baseGamma: null, beta: 0, gamma: 0 };
+  const tilt = { enabled: false, baseBeta: null, baseGamma: null, beta: 0, gamma: 0,
+    yaw: null, pitch: 0, lastYaw: 0, x: 0, y: 0, sx: 0, sy: 0 };   // x/y: look target (px, unscaled); sx/sy: smoothed
 
   // The visual viewport (window.innerHeight) shrinks when Safari's address bar
   // is showing. Sizing to that leaves a gap that's never drawn. Instead we size
@@ -143,6 +149,22 @@ function CollageEngine(canvas, opts) {
 
   // ---- tilt (phone orientation) ----
   function handleOrientation(e) {
+    if (TILT_MODE === 'look') {
+      // Which way is the back of the phone pointing? Taken from the full
+      // rotation (not raw alpha/beta), so it stays stable when held upright.
+      const d = Math.PI / 180, a = (e.alpha || 0) * d, b = (e.beta || 0) * d, g = (e.gamma || 0) * d;
+      const zx = Math.cos(a) * Math.sin(g) + Math.sin(a) * Math.sin(b) * Math.cos(g);
+      const zy = Math.sin(a) * Math.sin(g) - Math.cos(a) * Math.sin(b) * Math.cos(g);
+      const zz = Math.cos(b) * Math.cos(g);
+      const yaw = Math.atan2(-zx, -zy);
+      const pitch = Math.asin(Math.max(-1, Math.min(1, -zz)));
+      if (tilt.yaw === null) { tilt.yaw = yaw; tilt.lastYaw = yaw; tilt.pitch0 = pitch; tilt.unwrapped = 0; }
+      let dy = yaw - tilt.lastYaw;
+      if (dy > Math.PI) dy -= 2 * Math.PI; else if (dy < -Math.PI) dy += 2 * Math.PI;
+      tilt.unwrapped += dy; tilt.lastYaw = yaw;
+      tilt.pitch = pitch - tilt.pitch0;
+      return;
+    }
     if (tilt.baseGamma === null) { tilt.baseBeta = e.beta || 0; tilt.baseGamma = e.gamma || 0; }
     tilt.beta = e.beta || 0; tilt.gamma = e.gamma || 0;
   }
@@ -156,7 +178,14 @@ function CollageEngine(canvas, opts) {
 
   function render() {
     let tiltX = 0, tiltY = 0;
-    if (tilt.enabled && tilt.baseGamma !== null) {
+    if (TILT_MODE === 'look') {
+      if (tilt.enabled && tilt.yaw !== null) {
+        const k = settings.tiltSensitivity * LOOK_PX_PER_RAD;
+        const tx = tilt.unwrapped * k, ty = -tilt.pitch * k;   // turn right -> look right; tilt up -> look up
+        tilt.sx += (tx - tilt.sx) * 0.3; tilt.sy += (ty - tilt.sy) * 0.3;   // light smoothing against sensor jitter
+        tiltX = tilt.sx; tiltY = tilt.sy;
+      }
+    } else if (tilt.enabled && tilt.baseGamma !== null) {
       const s = settings.tiltSensitivity;
       tiltX = (tilt.gamma - tilt.baseGamma) * s * 6;
       tiltY = (tilt.beta - tilt.baseBeta) * s * 6;
@@ -251,6 +280,7 @@ function CollageEngine(canvas, opts) {
     tiltSupported: typeof window.DeviceOrientationEvent !== 'undefined',
     async enableTilt() {
       tilt.baseBeta = null; tilt.baseGamma = null;
+      tilt.yaw = null; tilt.sx = 0; tilt.sy = 0;
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         const res = await DeviceOrientationEvent.requestPermission();
         if (res !== 'granted') return false;
@@ -259,7 +289,11 @@ function CollageEngine(canvas, opts) {
       tilt.enabled = true;
       return true;
     },
-    disableTilt() { tilt.enabled = false; window.removeEventListener('deviceorientation', handleOrientation); },
+    disableTilt() {
+      // Where you were looking becomes where the collage stays (no snap back).
+      if (TILT_MODE === 'look') { panX += tilt.sx; panY += tilt.sy; tilt.sx = 0; tilt.sy = 0; tilt.yaw = null; }
+      tilt.enabled = false; window.removeEventListener('deviceorientation', handleOrientation);
+    },
     isTiltEnabled() { return tilt.enabled; },
     start() { requestAnimationFrame(frame); },
 

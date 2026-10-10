@@ -69,7 +69,7 @@ already-updated result immediately.
 - **Paste a sticker:** copy a subject cut out in Photos, tap the "Tap here to
   paste stickers" box, then paste.
 - **Scene:** *Apparent depth* (overall parallax strength), *Scroll speed*,
-  *Density* (bigger = images further apart), *Rotation* (0 = everything level, up to 30 degrees either way), *Tilt sensitivity* (0-0.3, default 0.15).
+  *Density* (bigger = images further apart), *Rotation* (0 = everything level, up to 30 degrees either way), *Tilt sensitivity* (how far the view travels when you turn the phone).
 - **Layers:** the list shows the front-most layer first. Per layer: *Size*, show/hide,
   bring forward (^), send back (v), delete (x). Hidden layers still show,
   dimmed, while editing, so you can see what you're toggling.
@@ -117,3 +117,11 @@ apart, and each one is also missing from some whole zones, so a screen shows
 roughly the same number of images however many you add -- a varied handful,
 with different layers turning up as you explore -- instead of the front few
 covering everything. *Density* still scales the spacing on top of this.
+
+## Tilt = look around
+
+On a phone, the tilt button turns the phone into a window onto the collage:
+turn and tilt it to look around, as if the layers surrounded you inside a
+sphere. It is endless, so you can keep turning. Switching it off leaves the
+collage where you were looking. The old small parallax nudge is still in
+`js/collage.js` -- set `TILT_MODE` to `'offset'` to bring it back.
