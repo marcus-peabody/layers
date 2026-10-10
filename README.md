@@ -109,3 +109,11 @@ gesture. Give it a proper drag, not just a glance at rest, to see the effect.
 Status-bar space itself stays reserved at rest regardless; adding the site to
 the Home Screen (Share -> Add to Home Screen) removes browser chrome entirely
 if you want true full-screen with zero compromise.
+
+## Many layers
+
+Past about 8 layers the collage thins itself out: each layer is spread further
+apart, and each one is also missing from some whole zones, so a screen shows
+roughly the same number of images however many you add -- a varied handful,
+with different layers turning up as you explore -- instead of the front few
+covering everything. *Density* still scales the spacing on top of this.

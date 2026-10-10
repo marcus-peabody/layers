@@ -168,6 +168,13 @@ function CollageEngine(canvas, opts) {
   // uses it for the live canvas; capture() uses it for the gallery cover.
   function drawScene(ctx, W, H, panX, panY, tiltX, tiltY) {
     ctx.clearRect(0, 0, W, H);
+    // Many layers must not all pile onto every spot, or the front few hide the
+    // rest. Past 8 layers each one is spread thinner (so the total on screen
+    // stays about what 8 layers give) and also drops out of some whole zones, so
+    // exploring reveals different layers in different places.
+    const nLayers = layers.length;
+    const spread = Math.max(1, Math.sqrt(nLayers / 8));
+    const zoneKeep = Math.min(1, 0.4 + 6 / nLayers);
     for (const l of layers) {
       const iw = l.img.naturalWidth || l.img.width, ih = l.img.naturalHeight || l.img.height;
       if (!iw || !ih) continue;
@@ -175,7 +182,7 @@ function CollageEngine(canvas, opts) {
       // Fit to ~260px on the long side, then apply the layer's own scale.
       const fit = Math.min(1, 260 / Math.max(iw, ih)) * l.scale;
       const dw = iw * fit, dh = ih * fit;
-      const cell = Math.max(dw, dh) * 1.7 * settings.density;
+      const cell = Math.max(dw, dh) * 1.7 * settings.density * spread;
 
       const parallax = l.depth * settings.depthScale;
       const camX = (panX + tiltX) * parallax, camY = (panY + tiltY) * parallax;
@@ -200,6 +207,7 @@ function CollageEngine(canvas, opts) {
       ctx.globalAlpha = l.opacity;
       for (let i = i0; i <= i1; i++) {
         for (let j = j0; j <= j1; j++) {
+          if (zoneKeep < 1 && hash(Math.floor(i / 3), Math.floor(j / 3), l.seed + 7) > zoneKeep) continue;   // this layer is absent from this zone
           const jx = (hash(i, j, l.seed) - 0.5) * cell * 0.8;
           const jy = (hash(j, i, l.seed + 1) - 0.5) * cell * 0.8;
           const rot = (hash(i + 1, j + 1, l.seed) - 0.5) * 2 * settings.rotation * Math.PI / 180;
