@@ -66,6 +66,7 @@ function CollageEngine(canvas, opts) {
     if (firstInteractCb) { firstInteractCb(); firstInteractCb = null; }
   }
 
+  let syncScroll = null;
   if (scroller) {
     // ---- real native scrolling drives pan for touch, trackpad, and wheel ----
     // The scroller is parked in the middle of a huge scroll range and quietly
@@ -77,8 +78,14 @@ function CollageEngine(canvas, opts) {
     let lastLeft = CENTER, lastTop = CENTER;
     scroller.scrollLeft = CENTER;
     scroller.scrollTop = CENTER;
-    scroller.addEventListener('scroll', () => {
+    // Read the scroll position on scroll events AND once at the start of every
+    // drawn frame. Scroll events can arrive out of step with drawing, which shows
+    // as a slight stutter; sampling per frame keeps the picture locked to where
+    // the finger / momentum has actually got to. Calling it twice is harmless:
+    // the second call sees a delta of zero.
+    syncScroll = () => {
       const sl = scroller.scrollLeft, st = scroller.scrollTop;
+      if (sl === lastLeft && st === lastTop) return;
       panX += (sl - lastLeft) * settings.speed;
       panY += (st - lastTop) * settings.speed;
       lastLeft = sl; lastTop = st;
@@ -87,7 +94,8 @@ function CollageEngine(canvas, opts) {
         scroller.scrollLeft = CENTER; scroller.scrollTop = CENTER;
         lastLeft = CENTER; lastTop = CENTER;
       }
-    }, { passive: true });
+    };
+    scroller.addEventListener('scroll', syncScroll, { passive: true });
 
     // Desktop mouse click-and-drag: native scrolling doesn't respond to this
     // at all, so it's handled the same way as the no-scroller fallback below,
@@ -259,6 +267,7 @@ function CollageEngine(canvas, opts) {
   function frame(t) {
     requestAnimationFrame(frame);
     resize();
+    if (syncScroll) syncScroll();   // pick up the latest scroll position for this frame
     const dt = lastFrameT ? Math.min(50, t - lastFrameT) : 16;
     lastFrameT = t;
     if (!dragging && (Math.abs(vx) > 0.001 || Math.abs(vy) > 0.001)) {
